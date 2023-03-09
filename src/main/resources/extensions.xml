@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<extensions>
+	<point id="de.featjar.util.cli.CLIFunctionManager">
+	    <extension id="de.featjar.evaluation.interactionfinder.InteractionFinderEvaluator" />
+	</point>
+	<point id="de.featjar.evaluation.EvaluationPhaseExtensionPoint">
+	    <extension id="de.featjar.evaluation.interactionfinder.FindingPhase" />
+	</point>
+</extensions>
