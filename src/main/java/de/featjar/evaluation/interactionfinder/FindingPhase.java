@@ -49,6 +49,7 @@ import de.featjar.util.io.IO;
 import de.featjar.util.io.csv.CSVWriter;
 import de.featjar.util.logging.Logger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
@@ -91,6 +92,7 @@ public class FindingPhase implements EvaluationPhase {
 
     @Override
     public void run(Evaluator evaluator) {
+        Logger.setPrintStackTrace(true);
         interactionFinderEvaluator = (InteractionFinderEvaluator) evaluator;
 
         modelWriter = evaluator.addCSVWriter("models.csv", "ModelID", "Name", "#Variables", "#Clauses");
@@ -141,8 +143,6 @@ public class FindingPhase implements EvaluationPhase {
 
             prepareAlgorithms();
 
-            Random random = new Random(evaluator.randomSeed.getValue());
-
             systemLoop:
             for (evaluator.systemIndex = 0; evaluator.systemIndex < evaluator.systemIndexMax; evaluator.systemIndex++) {
                 evaluator.tabFormatter.setTabLevel(1);
@@ -169,14 +169,18 @@ public class FindingPhase implements EvaluationPhase {
                         for (Integer interactionCountValue :
                                 interactionFinderEvaluator.interactionCountProperty.getValue()) {
                             interactionCount = interactionCountValue;
-                            faultyConfigs = model.getResult(getConfigGenerator(random))
+
+                            Random random1 = new Random(evaluator.randomSeed.getValue() + evaluator.systemIteration);
+                            faultyConfigs = model.getResult(getConfigGenerator(random1))
                                     .map(SolutionList::getSolutions)
                                     .orElse(Logger::logProblems);
                             if (faultyConfigs == null) {
                                 throw new RuntimeException();
                             }
+
+                            Random random2 = new Random(evaluator.randomSeed.getValue() + evaluator.systemIteration);
                             faultyInteractions = faultyConfigs.stream()
-                                    .map(c -> new LiteralList(Stream.generate(() -> (random.nextInt(c.size()) + 1)) //
+                                    .map(c -> new LiteralList(Stream.generate(() -> (random2.nextInt(c.size()) + 1)) //
                                             .mapToInt(Integer::intValue) //
                                             .filter(l -> !coreDead.containsAnyVariable(l))
                                             .distinct() //
@@ -184,7 +188,7 @@ public class FindingPhase implements EvaluationPhase {
                                             .map(l -> c.get(l - 1)) //
                                             .toArray()))
                                     .collect(Collectors.toList());
-                            faultyInteractionsUpdated = foundInteractions.stream()
+                            faultyInteractionsUpdated = faultyInteractions.stream()
                                     .map(globalUpdater::update)
                                     .filter(Optional::isPresent)
                                     .map(Optional::get)
@@ -207,8 +211,8 @@ public class FindingPhase implements EvaluationPhase {
                                                     .get(0));
 
                                     algorithmLoop:
-                                    for (final InteractionFinder algorithm : algorithmList) {
-                                        algorithmIndex++;
+                                    for (algorithmIndex = 0; algorithmIndex < algorithmList.size(); algorithmIndex++) {
+                                        InteractionFinder algorithm = algorithmList.get(algorithmIndex);
                                         for (Integer configCreationLimitValue :
                                                 interactionFinderEvaluator.configCreationLimitProperty.getValue()) {
                                             configCreationLimit = configCreationLimitValue;
@@ -374,16 +378,16 @@ public class FindingPhase implements EvaluationPhase {
         dataCSVWriter.addValue(t);
         dataCSVWriter.addValue(interactionSize);
         dataCSVWriter.addValue(interactionCount);
-        dataCSVWriter.addValue(faultyInteractions);
-        dataCSVWriter.addValue(faultyInteractionsUpdated);
+        dataCSVWriter.addValue(str(faultyInteractions));
+        dataCSVWriter.addValue(str(faultyInteractionsUpdated));
         dataCSVWriter.addValue(fpNoise);
         dataCSVWriter.addValue(fnNoise);
         dataCSVWriter.addValue(configVerificationLimit);
         dataCSVWriter.addValue(configCreationLimit);
 
-        dataCSVWriter.addValue(foundInteractions);
-        dataCSVWriter.addValue(foundInteractionsUpdated);
-        dataCSVWriter.addValue(foundInteractionsMerged);
+        dataCSVWriter.addValue(str(foundInteractions));
+        dataCSVWriter.addValue(str(foundInteractionsUpdated));
+        dataCSVWriter.addValue(str(foundInteractionsMerged));
         dataCSVWriter.addValue(lastStatistic.getVerifyCounter());
         dataCSVWriter.addValue(lastStatistic.getCreationCounter());
         dataCSVWriter.addValue(elapsedTimeInMS);
@@ -410,6 +414,8 @@ public class FindingPhase implements EvaluationPhase {
         sb.append("/");
         sb.append(interactionFinderEvaluator.systemIterations.getValue());
         sb.append(" | ");
+        sb.append(faultyInteractions);
+        sb.append(" | ");
         sb.append(algorithmList.get(algorithmIndex).getClass().getSimpleName());
         sb.append(" (");
         sb.append(algorithmIndex + 1);
@@ -419,7 +425,28 @@ public class FindingPhase implements EvaluationPhase {
         sb.append(algorithmIteration);
         sb.append("/");
         sb.append(interactionFinderEvaluator.algorithmIterations.getValue());
+        sb.append(" | (");
+        sb.append(t);
+        sb.append(", ");
+        sb.append(configVerificationLimit);
+        sb.append(", ");
+        sb.append(configCreationLimit);
+        sb.append(", ");
+        sb.append(fpNoise);
+        sb.append(", ");
+        sb.append(fnNoise);
+        sb.append(")");
         Logger.logInfo(sb.toString());
+    }
+
+    private String str(List<LiteralList> interactions) {
+        StringBuilder sb = new StringBuilder();
+        interactions.forEach(i -> sb.append(str(i)));
+        return sb.toString();
+    }
+
+    private String str(LiteralList interaction) {
+        return Arrays.toString(interaction.getLiterals());
     }
 
     private RandomConfigurationGenerator getConfigGenerator(Random random) {
