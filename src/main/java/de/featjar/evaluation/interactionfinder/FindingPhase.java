@@ -370,8 +370,8 @@ public class FindingPhase implements EvaluationPhase {
 
     protected void writeRunData(CSVWriter dataCSVWriter) {
         dataCSVWriter.addValue(interactionFinderEvaluator.getSystemID());
-        dataCSVWriter.addValue(algorithmIndex);
         dataCSVWriter.addValue(interactionFinderEvaluator.systemIteration);
+        dataCSVWriter.addValue(algorithmIndex);
         dataCSVWriter.addValue(algorithmIteration);
 
         dataCSVWriter.addValue(runID);
