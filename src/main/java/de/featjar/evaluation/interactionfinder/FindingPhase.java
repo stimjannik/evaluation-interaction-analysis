@@ -33,10 +33,12 @@ import de.featjar.clauses.solutions.SolutionList;
 import de.featjar.clauses.solutions.analysis.InteractionFinder;
 import de.featjar.clauses.solutions.analysis.InteractionFinder.Statistic;
 import de.featjar.clauses.solutions.analysis.InteractionFinderCombinationBackward;
-import de.featjar.clauses.solutions.analysis.InteractionFinderCombinationBackward2;
 import de.featjar.clauses.solutions.analysis.InteractionFinderCombinationForward;
+import de.featjar.clauses.solutions.analysis.InteractionFinderCombinationForwardBackward;
+import de.featjar.clauses.solutions.analysis.NaiveRandomInteractionFinder;
 import de.featjar.clauses.solutions.analysis.RandomInteractionFinder;
 import de.featjar.clauses.solutions.analysis.SingleInteractionFinder;
+import de.featjar.clauses.solutions.analysis.SingleRandomInteractionFinder;
 import de.featjar.clauses.solutions.io.PartialListFormat;
 import de.featjar.evaluation.EvaluationPhase;
 import de.featjar.evaluation.Evaluator;
@@ -44,13 +46,12 @@ import de.featjar.evaluation.util.ModelReader;
 import de.featjar.formula.ModelRepresentation;
 import de.featjar.formula.io.FormulaFormatManager;
 import de.featjar.formula.structure.Formula;
-import de.featjar.formula.structure.atomic.literal.VariableMap;
-import de.featjar.util.io.IO;
 import de.featjar.util.io.csv.CSVWriter;
 import de.featjar.util.logging.Logger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -116,6 +117,8 @@ public class FindingPhase implements EvaluationPhase {
                 "FoundInteractions",
                 "FoundInteractionsUpdated",
                 "FoundInteractionsMerged",
+                "Equals",
+                "Contains",
                 "ConfigurationVerificationCount",
                 "ConfigurationCreationCount",
                 "Time");
@@ -152,7 +155,6 @@ public class FindingPhase implements EvaluationPhase {
                     continue systemLoop;
                 }
 
-                VariableMap variables = model.getVariables();
                 MIG mig = model.get(MIGProvider.fromFormula(false, false));
                 LiteralList coreDead = new LiteralList(mig.getVertices().stream()
                         .filter(Vertex::isCore)
@@ -271,15 +273,15 @@ public class FindingPhase implements EvaluationPhase {
                                                                 statistic = s;
                                                                 iterationDataWriter.writeLine();
                                                             }
-                                                            //final SolutionList sample =
-                                                            //        new SolutionList(variables, algorithm.getSample());
-                                                            //if (sample != null) {
-                                                            //    IO.save(
-                                                            //            sample,
-                                                            //            interactionFinderEvaluator.outputPath.resolve(
-                                                            //                    sampleFileName),
-                                                            //            sampleFormat);
-                                                            //}
+                                                            // final SolutionList sample =
+                                                            // new SolutionList(variables, algorithm.getSample());
+                                                            // if (sample != null) {
+                                                            // IO.save(
+                                                            // sample,
+                                                            // interactionFinderEvaluator.outputPath.resolve(
+                                                            // sampleFileName),
+                                                            // sampleFormat);
+                                                            // }
                                                         } catch (final Exception e) {
                                                             Logger.logError(
                                                                     "Could not save sample file " + sampleFileName);
@@ -324,6 +326,14 @@ public class FindingPhase implements EvaluationPhase {
         for (final String algorithmName : interactionFinderEvaluator.algorithmsProperty.getValue()) {
             InteractionFinder interactionFinderRandom;
             switch (algorithmName) {
+                case "NaiveRandom": {
+                    interactionFinderRandom = new NaiveRandomInteractionFinder();
+                    break;
+                }
+                case "SingleRandom": {
+                    interactionFinderRandom = new SingleRandomInteractionFinder();
+                    break;
+                }
                 case "Random": {
                     interactionFinderRandom = new RandomInteractionFinder();
                     break;
@@ -336,12 +346,12 @@ public class FindingPhase implements EvaluationPhase {
                     interactionFinderRandom = new InteractionFinderCombinationForward();
                     break;
                 }
-                case "Backward": {
-                    interactionFinderRandom = new InteractionFinderCombinationBackward();
+                case "ForwardBackward": {
+                    interactionFinderRandom = new InteractionFinderCombinationForwardBackward();
                     break;
                 }
-                case "Backward2": {
-                    interactionFinderRandom = new InteractionFinderCombinationBackward2();
+                case "Backward": {
+                    interactionFinderRandom = new InteractionFinderCombinationBackward();
                     break;
                 }
                 default:
@@ -388,6 +398,8 @@ public class FindingPhase implements EvaluationPhase {
         dataCSVWriter.addValue(str(foundInteractions));
         dataCSVWriter.addValue(str(foundInteractionsUpdated));
         dataCSVWriter.addValue(str(foundInteractionsMerged));
+        dataCSVWriter.addValue(Objects.equals(str(faultyInteractionsUpdated), str(foundInteractionsMerged)));
+        dataCSVWriter.addValue(faultyInteractionsUpdated.get(0).containsAll(foundInteractionsMerged));
         dataCSVWriter.addValue(lastStatistic.getVerifyCounter());
         dataCSVWriter.addValue(lastStatistic.getCreationCounter());
         dataCSVWriter.addValue(elapsedTimeInMS);
