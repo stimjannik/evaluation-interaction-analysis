@@ -271,15 +271,15 @@ public class FindingPhase implements EvaluationPhase {
                                                                 statistic = s;
                                                                 iterationDataWriter.writeLine();
                                                             }
-                                                            final SolutionList sample =
-                                                                    new SolutionList(variables, algorithm.getSample());
-                                                            if (sample != null) {
-                                                                IO.save(
-                                                                        sample,
-                                                                        interactionFinderEvaluator.outputPath.resolve(
-                                                                                sampleFileName),
-                                                                        sampleFormat);
-                                                            }
+                                                            //final SolutionList sample =
+                                                            //        new SolutionList(variables, algorithm.getSample());
+                                                            //if (sample != null) {
+                                                            //    IO.save(
+                                                            //            sample,
+                                                            //            interactionFinderEvaluator.outputPath.resolve(
+                                                            //                    sampleFileName),
+                                                            //            sampleFormat);
+                                                            //}
                                                         } catch (final Exception e) {
                                                             Logger.logError(
                                                                     "Could not save sample file " + sampleFileName);
