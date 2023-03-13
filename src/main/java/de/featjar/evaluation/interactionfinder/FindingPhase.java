@@ -85,7 +85,7 @@ public class FindingPhase implements EvaluationPhase {
     private int runID;
 
     private List<LiteralList> foundInteractions;
-    private List<LiteralList> foundInteractionsUpdated;
+//    private List<LiteralList> foundInteractionsUpdated;
     private LiteralList foundInteractionsMerged;
     private Statistic lastStatistic;
     private Statistic statistic;
@@ -107,18 +107,19 @@ public class FindingPhase implements EvaluationPhase {
                 "RunID",
                 "T",
                 "InteractionSize",
-                "InteractionCount",
+//                "InteractionCount",
                 "Interactions",
                 "InteractionsUpdated",
-                "FPNoise",
-                "FNNoise",
+//                "FPNoise",
+//                "FNNoise",
                 "ConfigurationVerificationLimit",
-                "ConfigurationCreationLimit",
-                "FoundInteractions",
-                "FoundInteractionsUpdated",
+//                "ConfigurationCreationLimit",
+//                "FoundInteractions",
+//                "FoundInteractionsUpdated",
+                "FoundInteractionCount",
                 "FoundInteractionsMerged",
                 "Equals",
-                "Contains",
+                "Subset",
                 "ConfigurationVerificationCount",
                 "ConfigurationCreationCount",
                 "Time");
@@ -256,11 +257,11 @@ public class FindingPhase implements EvaluationPhase {
                                                             foundInteractions = algorithm.find(t);
                                                             long endTime = System.nanoTime();
 
-                                                            foundInteractionsUpdated = foundInteractions.stream()
-                                                                    .map(globalUpdater::update)
-                                                                    .filter(Optional::isPresent)
-                                                                    .map(Optional::get)
-                                                                    .collect(Collectors.toList());
+//                                                            foundInteractionsUpdated = foundInteractions.stream()
+//                                                                    .map(globalUpdater::update)
+//                                                                    .filter(Optional::isPresent)
+//                                                                    .map(Optional::get)
+//                                                                    .collect(Collectors.toList());
                                                             foundInteractionsMerged = globalUpdater
                                                                     .merge(foundInteractions)
                                                                     .orElse(null);
@@ -387,19 +388,20 @@ public class FindingPhase implements EvaluationPhase {
         dataCSVWriter.addValue(runID);
         dataCSVWriter.addValue(t);
         dataCSVWriter.addValue(interactionSize);
-        dataCSVWriter.addValue(interactionCount);
+//        dataCSVWriter.addValue(interactionCount);
         dataCSVWriter.addValue(str(faultyInteractions));
         dataCSVWriter.addValue(str(faultyInteractionsUpdated));
-        dataCSVWriter.addValue(fpNoise);
-        dataCSVWriter.addValue(fnNoise);
+//        dataCSVWriter.addValue(fpNoise);
+//        dataCSVWriter.addValue(fnNoise);
         dataCSVWriter.addValue(configVerificationLimit);
-        dataCSVWriter.addValue(configCreationLimit);
+//        dataCSVWriter.addValue(configCreationLimit);
 
-        dataCSVWriter.addValue(str(foundInteractions));
-        dataCSVWriter.addValue(str(foundInteractionsUpdated));
+//        dataCSVWriter.addValue(str(foundInteractions));
+//        dataCSVWriter.addValue(str(foundInteractionsUpdated));
+        dataCSVWriter.addValue(foundInteractions.size());
         dataCSVWriter.addValue(str(foundInteractionsMerged));
-        dataCSVWriter.addValue(Objects.equals(str(faultyInteractionsUpdated), str(foundInteractionsMerged)));
-        dataCSVWriter.addValue(faultyInteractionsUpdated.get(0).containsAll(foundInteractionsMerged));
+        dataCSVWriter.addValue(Objects.equals(str(faultyInteractionsUpdated.get(0)), str(foundInteractionsMerged)) ? "T" : "F");
+        dataCSVWriter.addValue(faultyInteractionsUpdated.get(0).containsAll(foundInteractionsMerged) ? "T" : "F");
         dataCSVWriter.addValue(lastStatistic.getVerifyCounter());
         dataCSVWriter.addValue(lastStatistic.getCreationCounter());
         dataCSVWriter.addValue(elapsedTimeInMS);
