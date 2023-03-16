@@ -451,7 +451,7 @@ public class FindingPhase implements EvaluationPhase {
         sb.append(" | ");
         sb.append(faultyInteractions);
         sb.append(" | ");
-        sb.append(algorithmList.get(algorithmIndex).getClass().getSimpleName());
+        sb.append(algorithmNameList.get(algorithmIndex));
         sb.append(" (");
         sb.append(algorithmIndex + 1);
         sb.append("/");
