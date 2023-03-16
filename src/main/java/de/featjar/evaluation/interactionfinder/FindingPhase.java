@@ -35,10 +35,10 @@ import de.featjar.clauses.solutions.analysis.InteractionFinder.Statistic;
 import de.featjar.clauses.solutions.analysis.InteractionFinderCombinationBackward;
 import de.featjar.clauses.solutions.analysis.InteractionFinderCombinationForward;
 import de.featjar.clauses.solutions.analysis.InteractionFinderCombinationForwardBackward;
+import de.featjar.clauses.solutions.analysis.IterativeInteractionFinder;
 import de.featjar.clauses.solutions.analysis.NaiveRandomInteractionFinder;
 import de.featjar.clauses.solutions.analysis.RandomInteractionFinder;
 import de.featjar.clauses.solutions.analysis.SingleInteractionFinder;
-import de.featjar.clauses.solutions.analysis.SingleRandomInteractionFinder;
 import de.featjar.clauses.solutions.io.PartialListFormat;
 import de.featjar.evaluation.EvaluationPhase;
 import de.featjar.evaluation.Evaluator;
@@ -51,7 +51,6 @@ import de.featjar.util.logging.Logger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -65,6 +64,7 @@ public class FindingPhase implements EvaluationPhase {
     private final PartialListFormat sampleFormat = new PartialListFormat();
 
     private List<InteractionFinder> algorithmList;
+    private List<String> algorithmNameList;
 
     private CSVWriter runDataWriter, iterationDataWriter, modelWriter, algorithmWriter;
     private int algorithmIndex, algorithmIteration;
@@ -85,8 +85,8 @@ public class FindingPhase implements EvaluationPhase {
     private int runID;
 
     private List<LiteralList> foundInteractions;
-//    private List<LiteralList> foundInteractionsUpdated;
     private LiteralList foundInteractionsMerged;
+    private LiteralList foundInteractionsMergedAndUpdated;
     private Statistic lastStatistic;
     private Statistic statistic;
     private long elapsedTimeInMS;
@@ -107,19 +107,23 @@ public class FindingPhase implements EvaluationPhase {
                 "RunID",
                 "T",
                 "InteractionSize",
-//                "InteractionCount",
+                //                "InteractionCount",
                 "Interactions",
                 "InteractionsUpdated",
-//                "FPNoise",
-//                "FNNoise",
+                //                "FPNoise",
+                //                "FNNoise",
                 "ConfigurationVerificationLimit",
-//                "ConfigurationCreationLimit",
-//                "FoundInteractions",
-//                "FoundInteractionsUpdated",
+                //                "ConfigurationCreationLimit",
+                //                "FoundInteractions",
+                //                "FoundInteractionsUpdated",
                 "FoundInteractionCount",
                 "FoundInteractionsMerged",
-                "Equals",
-                "Subset",
+                "FoundMergedUpdatedIsSubsetFaultyUpdated",
+                "FaultyUpdatedIsSubsetFoundMergedUpdated",
+                "FoundMergedIsSubsetFaulty",
+                "FaultyIsSubsetFoundMerged",
+                "FaultyIsSubsetFound",
+                "FoundIsSubsetFaulty",
                 "ConfigurationVerificationCount",
                 "ConfigurationCreationCount",
                 "Time");
@@ -257,13 +261,10 @@ public class FindingPhase implements EvaluationPhase {
                                                             foundInteractions = algorithm.find(t);
                                                             long endTime = System.nanoTime();
 
-//                                                            foundInteractionsUpdated = foundInteractions.stream()
-//                                                                    .map(globalUpdater::update)
-//                                                                    .filter(Optional::isPresent)
-//                                                                    .map(Optional::get)
-//                                                                    .collect(Collectors.toList());
-                                                            foundInteractionsMerged = globalUpdater
-                                                                    .merge(foundInteractions)
+                                                            foundInteractionsMerged =
+                                                                    LiteralList.merge(foundInteractions);
+                                                            foundInteractionsMergedAndUpdated = globalUpdater
+                                                                    .update(foundInteractionsMerged)
                                                                     .orElse(null);
                                                             List<Statistic> statistics = algorithm.getStatistics();
                                                             lastStatistic = statistics.get(statistics.size() - 1);
@@ -322,24 +323,33 @@ public class FindingPhase implements EvaluationPhase {
 
     protected void prepareAlgorithms() {
         algorithmList = new ArrayList<>();
+        algorithmNameList = new ArrayList<>();
 
         algorithmIndex = 0;
         for (final String algorithmName : interactionFinderEvaluator.algorithmsProperty.getValue()) {
             InteractionFinder interactionFinderRandom;
             switch (algorithmName) {
                 case "NaiveRandom": {
-                    interactionFinderRandom = new NaiveRandomInteractionFinder();
-                    break;
-                }
-                case "SingleRandom": {
-                    interactionFinderRandom = new SingleRandomInteractionFinder();
+                    interactionFinderRandom = new IterativeInteractionFinder(new NaiveRandomInteractionFinder());
                     break;
                 }
                 case "Random": {
-                    interactionFinderRandom = new RandomInteractionFinder();
+                    interactionFinderRandom = new IterativeInteractionFinder(new RandomInteractionFinder());
                     break;
                 }
                 case "Single": {
+                    interactionFinderRandom = new IterativeInteractionFinder(new SingleInteractionFinder());
+                    break;
+                }
+                case "IterativeNaiveRandom": {
+                    interactionFinderRandom = new NaiveRandomInteractionFinder();
+                    break;
+                }
+                case "IterativeRandom": {
+                    interactionFinderRandom = new RandomInteractionFinder();
+                    break;
+                }
+                case "IterativeSingle": {
                     interactionFinderRandom = new SingleInteractionFinder();
                     break;
                 }
@@ -359,6 +369,7 @@ public class FindingPhase implements EvaluationPhase {
                     continue;
             }
             algorithmList.add(interactionFinderRandom);
+            algorithmNameList.add(algorithmName);
             algorithmWriter.writeLine();
             algorithmIndex++;
         }
@@ -374,9 +385,8 @@ public class FindingPhase implements EvaluationPhase {
     }
 
     protected void writeAlgorithm(CSVWriter algorithmCSVWriter) {
-        final InteractionFinder algorithm = algorithmList.get(algorithmIndex);
         algorithmCSVWriter.addValue(algorithmIndex);
-        algorithmCSVWriter.addValue(algorithm.getClass().getSimpleName());
+        algorithmCSVWriter.addValue(algorithmNameList.get(algorithmIndex));
     }
 
     protected void writeRunData(CSVWriter dataCSVWriter) {
@@ -388,20 +398,31 @@ public class FindingPhase implements EvaluationPhase {
         dataCSVWriter.addValue(runID);
         dataCSVWriter.addValue(t);
         dataCSVWriter.addValue(interactionSize);
-//        dataCSVWriter.addValue(interactionCount);
+        //        dataCSVWriter.addValue(interactionCount);
         dataCSVWriter.addValue(str(faultyInteractions));
         dataCSVWriter.addValue(str(faultyInteractionsUpdated));
-//        dataCSVWriter.addValue(fpNoise);
-//        dataCSVWriter.addValue(fnNoise);
+        //        dataCSVWriter.addValue(fpNoise);
+        //        dataCSVWriter.addValue(fnNoise);
         dataCSVWriter.addValue(configVerificationLimit);
-//        dataCSVWriter.addValue(configCreationLimit);
+        //        dataCSVWriter.addValue(configCreationLimit);
 
-//        dataCSVWriter.addValue(str(foundInteractions));
-//        dataCSVWriter.addValue(str(foundInteractionsUpdated));
+        //        dataCSVWriter.addValue(str(foundInteractions));
+        //        dataCSVWriter.addValue(str(foundInteractionsUpdated));
         dataCSVWriter.addValue(foundInteractions.size());
-        dataCSVWriter.addValue(str(foundInteractionsMerged));
-        dataCSVWriter.addValue(Objects.equals(str(faultyInteractionsUpdated.get(0)), str(foundInteractionsMerged)) ? "T" : "F");
-        dataCSVWriter.addValue(faultyInteractionsUpdated.get(0).containsAll(foundInteractionsMerged) ? "T" : "F");
+        dataCSVWriter.addValue(str(foundInteractionsMergedAndUpdated));
+        dataCSVWriter.addValue(
+                faultyInteractionsUpdated.get(0).containsAll(foundInteractionsMergedAndUpdated) ? "T" : "F");
+        dataCSVWriter.addValue(
+                foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0)) ? "T" : "F");
+        dataCSVWriter.addValue(foundInteractionsMerged.containsAll(faultyInteractions.get(0)) ? "T" : "F");
+        dataCSVWriter.addValue(faultyInteractions.get(0).containsAll(foundInteractionsMerged) ? "T" : "F");
+        dataCSVWriter.addValue(
+                foundInteractions.stream().anyMatch(i -> i.containsAll(faultyInteractions.get(0))) ? "T" : "F");
+        dataCSVWriter.addValue(
+                foundInteractions.stream()
+                                .anyMatch(i -> faultyInteractions.get(0).containsAll(i))
+                        ? "T"
+                        : "F");
         dataCSVWriter.addValue(lastStatistic.getVerifyCounter());
         dataCSVWriter.addValue(lastStatistic.getCreationCounter());
         dataCSVWriter.addValue(elapsedTimeInMS);
