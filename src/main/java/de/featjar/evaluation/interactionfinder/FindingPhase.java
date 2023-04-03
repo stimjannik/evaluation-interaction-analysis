@@ -32,12 +32,9 @@ import de.featjar.clauses.LiteralList;
 import de.featjar.clauses.solutions.SolutionList;
 import de.featjar.clauses.solutions.analysis.InteractionFinder;
 import de.featjar.clauses.solutions.analysis.InteractionFinder.Statistic;
-import de.featjar.clauses.solutions.analysis.InteractionFinderCombinationBackward;
-import de.featjar.clauses.solutions.analysis.InteractionFinderCombinationForward;
 import de.featjar.clauses.solutions.analysis.InteractionFinderCombinationForwardBackward;
-import de.featjar.clauses.solutions.analysis.IterativeInteractionFinder;
+import de.featjar.clauses.solutions.analysis.InteractionFinderWrapper;
 import de.featjar.clauses.solutions.analysis.NaiveRandomInteractionFinder;
-import de.featjar.clauses.solutions.analysis.RandomInteractionFinder;
 import de.featjar.clauses.solutions.analysis.SingleInteractionFinder;
 import de.featjar.clauses.solutions.io.PartialListFormat;
 import de.featjar.evaluation.EvaluationPhase;
@@ -107,15 +104,15 @@ public class FindingPhase implements EvaluationPhase {
                 "RunID",
                 "T",
                 "InteractionSize",
-                //                "InteractionCount",
+                // "InteractionCount",
                 "Interactions",
-                "InteractionsUpdated",
-                //                "FPNoise",
-                //                "FNNoise",
-                "ConfigurationVerificationLimit",
-                //                "ConfigurationCreationLimit",
-                //                "FoundInteractions",
-                //                "FoundInteractionsUpdated",
+                //                "InteractionsUpdated",
+                // "FPNoise",
+                // "FNNoise",
+                //                "ConfigurationVerificationLimit",
+                // "ConfigurationCreationLimit",
+                // "FoundInteractions",
+                // "FoundInteractionsUpdated",
                 "FoundInteractionCount",
                 "FoundInteractionsMerged",
                 "FoundMergedUpdatedIsSubsetFaultyUpdated",
@@ -261,11 +258,16 @@ public class FindingPhase implements EvaluationPhase {
                                                             foundInteractions = algorithm.find(t);
                                                             long endTime = System.nanoTime();
 
-                                                            foundInteractionsMerged =
-                                                                    LiteralList.merge(foundInteractions);
-                                                            foundInteractionsMergedAndUpdated = globalUpdater
-                                                                    .update(foundInteractionsMerged)
-                                                                    .orElse(null);
+                                                            if (foundInteractions != null) {
+                                                                foundInteractionsMerged =
+                                                                        LiteralList.merge(foundInteractions);
+                                                                foundInteractionsMergedAndUpdated = globalUpdater
+                                                                        .update(foundInteractionsMerged)
+                                                                        .orElse(null);
+                                                            } else {
+                                                                foundInteractionsMerged = null;
+                                                                foundInteractionsMergedAndUpdated = null;
+                                                            }
                                                             List<Statistic> statistics = algorithm.getStatistics();
                                                             lastStatistic = statistics.get(statistics.size() - 1);
                                                             elapsedTimeInMS = (endTime - startTime) / 1_000_000;
@@ -330,39 +332,25 @@ public class FindingPhase implements EvaluationPhase {
             InteractionFinder interactionFinderRandom;
             switch (algorithmName) {
                 case "NaiveRandom": {
-                    interactionFinderRandom = new IterativeInteractionFinder(new NaiveRandomInteractionFinder());
-                    break;
-                }
-                case "Random": {
-                    interactionFinderRandom = new IterativeInteractionFinder(new RandomInteractionFinder());
+                    interactionFinderRandom =
+                            new InteractionFinderWrapper(new NaiveRandomInteractionFinder(), true, false);
                     break;
                 }
                 case "Single": {
-                    interactionFinderRandom = new IterativeInteractionFinder(new SingleInteractionFinder());
+                    interactionFinderRandom = new InteractionFinderWrapper(new SingleInteractionFinder(), true, false);
                     break;
                 }
                 case "IterativeNaiveRandom": {
-                    interactionFinderRandom = new NaiveRandomInteractionFinder();
-                    break;
-                }
-                case "IterativeRandom": {
-                    interactionFinderRandom = new RandomInteractionFinder();
+                    interactionFinderRandom =
+                            new InteractionFinderWrapper(new NaiveRandomInteractionFinder(), true, true);
                     break;
                 }
                 case "IterativeSingle": {
-                    interactionFinderRandom = new SingleInteractionFinder();
-                    break;
-                }
-                case "Forward": {
-                    interactionFinderRandom = new InteractionFinderCombinationForward();
+                    interactionFinderRandom = new InteractionFinderWrapper(new SingleInteractionFinder(), true, true);
                     break;
                 }
                 case "ForwardBackward": {
                     interactionFinderRandom = new InteractionFinderCombinationForwardBackward();
-                    break;
-                }
-                case "Backward": {
-                    interactionFinderRandom = new InteractionFinderCombinationBackward();
                     break;
                 }
                 default:
@@ -398,31 +386,42 @@ public class FindingPhase implements EvaluationPhase {
         dataCSVWriter.addValue(runID);
         dataCSVWriter.addValue(t);
         dataCSVWriter.addValue(interactionSize);
-        //        dataCSVWriter.addValue(interactionCount);
+        // dataCSVWriter.addValue(interactionCount);
         dataCSVWriter.addValue(str(faultyInteractions));
-        dataCSVWriter.addValue(str(faultyInteractionsUpdated));
-        //        dataCSVWriter.addValue(fpNoise);
-        //        dataCSVWriter.addValue(fnNoise);
-        dataCSVWriter.addValue(configVerificationLimit);
-        //        dataCSVWriter.addValue(configCreationLimit);
+        //        dataCSVWriter.addValue(str(faultyInteractionsUpdated));
+        // dataCSVWriter.addValue(fpNoise);
+        // dataCSVWriter.addValue(fnNoise);
+        //        dataCSVWriter.addValue(configVerificationLimit);
+        // dataCSVWriter.addValue(configCreationLimit);
 
-        //        dataCSVWriter.addValue(str(foundInteractions));
-        //        dataCSVWriter.addValue(str(foundInteractionsUpdated));
-        dataCSVWriter.addValue(foundInteractions.size());
-        dataCSVWriter.addValue(str(foundInteractionsMergedAndUpdated));
-        dataCSVWriter.addValue(
-                faultyInteractionsUpdated.get(0).containsAll(foundInteractionsMergedAndUpdated) ? "T" : "F");
-        dataCSVWriter.addValue(
-                foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0)) ? "T" : "F");
-        dataCSVWriter.addValue(foundInteractionsMerged.containsAll(faultyInteractions.get(0)) ? "T" : "F");
-        dataCSVWriter.addValue(faultyInteractions.get(0).containsAll(foundInteractionsMerged) ? "T" : "F");
-        dataCSVWriter.addValue(
-                foundInteractions.stream().anyMatch(i -> i.containsAll(faultyInteractions.get(0))) ? "T" : "F");
-        dataCSVWriter.addValue(
-                foundInteractions.stream()
-                                .anyMatch(i -> faultyInteractions.get(0).containsAll(i))
-                        ? "T"
-                        : "F");
+        // dataCSVWriter.addValue(str(foundInteractions));
+        // dataCSVWriter.addValue(str(foundInteractionsUpdated));
+        if (foundInteractions != null) {
+            dataCSVWriter.addValue(foundInteractions.size());
+            dataCSVWriter.addValue(str(foundInteractionsMergedAndUpdated));
+            dataCSVWriter.addValue(
+                    faultyInteractionsUpdated.get(0).containsAll(foundInteractionsMergedAndUpdated) ? "T" : "F");
+            dataCSVWriter.addValue(
+                    foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0)) ? "T" : "F");
+            dataCSVWriter.addValue(foundInteractionsMerged.containsAll(faultyInteractions.get(0)) ? "T" : "F");
+            dataCSVWriter.addValue(faultyInteractions.get(0).containsAll(foundInteractionsMerged) ? "T" : "F");
+            dataCSVWriter.addValue(
+                    foundInteractions.stream().anyMatch(i -> i.containsAll(faultyInteractions.get(0))) ? "T" : "F");
+            dataCSVWriter.addValue(
+                    foundInteractions.stream()
+                                    .anyMatch(i -> faultyInteractions.get(0).containsAll(i))
+                            ? "T"
+                            : "F");
+        } else {
+            dataCSVWriter.addValue(0);
+            dataCSVWriter.addValue("null");
+            dataCSVWriter.addValue("N");
+            dataCSVWriter.addValue("N");
+            dataCSVWriter.addValue("N");
+            dataCSVWriter.addValue("N");
+            dataCSVWriter.addValue("N");
+            dataCSVWriter.addValue("N");
+        }
         dataCSVWriter.addValue(lastStatistic.getVerifyCounter());
         dataCSVWriter.addValue(lastStatistic.getCreationCounter());
         dataCSVWriter.addValue(elapsedTimeInMS);
