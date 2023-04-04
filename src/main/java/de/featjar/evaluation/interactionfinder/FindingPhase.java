@@ -106,7 +106,7 @@ public class FindingPhase implements EvaluationPhase {
                 "InteractionSize",
                 // "InteractionCount",
                 "Interactions",
-                //                "InteractionsUpdated",
+                "InteractionsUpdated",
                 // "FPNoise",
                 // "FNNoise",
                 //                "ConfigurationVerificationLimit",
@@ -121,6 +121,10 @@ public class FindingPhase implements EvaluationPhase {
                 "FaultyIsSubsetFoundMerged",
                 "FaultyIsSubsetFound",
                 "FoundIsSubsetFaulty",
+                "FoundLiteralsCount",
+                "CorrectlyFoundLiteralsCount",
+                "MissedLiteralsCount",
+                "IncorrectlyFoundLiteralsCount",
                 "ConfigurationVerificationCount",
                 "ConfigurationCreationCount",
                 "Time");
@@ -388,7 +392,7 @@ public class FindingPhase implements EvaluationPhase {
         dataCSVWriter.addValue(interactionSize);
         // dataCSVWriter.addValue(interactionCount);
         dataCSVWriter.addValue(str(faultyInteractions));
-        //        dataCSVWriter.addValue(str(faultyInteractionsUpdated));
+        dataCSVWriter.addValue(str(faultyInteractionsUpdated));
         // dataCSVWriter.addValue(fpNoise);
         // dataCSVWriter.addValue(fnNoise);
         //        dataCSVWriter.addValue(configVerificationLimit);
@@ -412,8 +416,21 @@ public class FindingPhase implements EvaluationPhase {
                                     .anyMatch(i -> faultyInteractions.get(0).containsAll(i))
                             ? "T"
                             : "F");
+
+            dataCSVWriter.addValue(foundInteractionsMergedAndUpdated.countNonNull());
+            dataCSVWriter.addValue(faultyInteractionsUpdated
+                    .get(0)
+                    .retainAll(foundInteractionsMergedAndUpdated)
+                    .countNonNull());
+            dataCSVWriter.addValue(faultyInteractionsUpdated
+                    .get(0)
+                    .removeAll(foundInteractionsMergedAndUpdated)
+                    .countNonNull());
+            dataCSVWriter.addValue(foundInteractionsMergedAndUpdated
+                    .removeAll(faultyInteractionsUpdated.get(0))
+                    .countNonNull());
         } else {
-            dataCSVWriter.addValue(0);
+            dataCSVWriter.addValue(-1);
             dataCSVWriter.addValue("null");
             dataCSVWriter.addValue("N");
             dataCSVWriter.addValue("N");
@@ -421,6 +438,10 @@ public class FindingPhase implements EvaluationPhase {
             dataCSVWriter.addValue("N");
             dataCSVWriter.addValue("N");
             dataCSVWriter.addValue("N");
+            dataCSVWriter.addValue(-1);
+            dataCSVWriter.addValue(-1);
+            dataCSVWriter.addValue(-1);
+            dataCSVWriter.addValue(-1);
         }
         dataCSVWriter.addValue(lastStatistic.getVerifyCounter());
         dataCSVWriter.addValue(lastStatistic.getCreationCounter());
