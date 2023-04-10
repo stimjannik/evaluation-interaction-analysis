@@ -26,6 +26,7 @@ import de.featjar.evaluation.properties.Property;
 
 public class InteractionFinderEvaluator extends Evaluator {
 
+    Property<Integer> memoryProperty = new Property<>("memory", Property.IntegerConverter, 8);
     ListProperty<Integer> tProperty = new ListProperty<>("t", Property.IntegerConverter);
     ListProperty<Integer> interactionSizeProperty = new ListProperty<>("interactionSize", Property.IntegerConverter);
     ListProperty<Integer> interactionCountProperty = new ListProperty<>("interactionCount", Property.IntegerConverter);
