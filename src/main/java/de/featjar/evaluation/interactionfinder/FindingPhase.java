@@ -109,7 +109,7 @@ public class FindingPhase implements EvaluationPhase {
                 "InteractionsUpdated",
                 // "FPNoise",
                 // "FNNoise",
-                //                "ConfigurationVerificationLimit",
+                // "ConfigurationVerificationLimit",
                 // "ConfigurationCreationLimit",
                 // "FoundInteractions",
                 // "FoundInteractionsUpdated",
@@ -263,8 +263,12 @@ public class FindingPhase implements EvaluationPhase {
                                                             long endTime = System.nanoTime();
 
                                                             if (foundInteractions != null) {
-                                                                foundInteractionsMerged =
-                                                                        LiteralList.merge(foundInteractions);
+                                                                foundInteractionsMerged = LiteralList.merge(
+                                                                        foundInteractions,
+                                                                        model.getFormula()
+                                                                                .getVariableMap()
+                                                                                .get()
+                                                                                .getVariableCount());
                                                                 foundInteractionsMergedAndUpdated = globalUpdater
                                                                         .update(foundInteractionsMerged)
                                                                         .orElse(null);
@@ -272,6 +276,17 @@ public class FindingPhase implements EvaluationPhase {
                                                                 foundInteractionsMerged = null;
                                                                 foundInteractionsMergedAndUpdated = null;
                                                             }
+                                                            // if (t >= interactionSize
+                                                            // &&
+                                                            // (!faultyInteractionsUpdated.get(0).containsAll(
+                                                            // foundInteractionsMergedAndUpdated)
+                                                            // ||
+                                                            // !foundInteractionsMergedAndUpdated.containsAll(
+                                                            // faultyInteractionsUpdated.get(0)))) {
+                                                            // Logger.logInfo(faultyInteractionsUpdated.get(0));
+                                                            // Logger.logInfo(foundInteractionsMergedAndUpdated);
+                                                            // throw new RuntimeException();
+                                                            // }
                                                             List<Statistic> statistics = algorithm.getStatistics();
                                                             lastStatistic = statistics.get(statistics.size() - 1);
                                                             elapsedTimeInMS = (endTime - startTime) / 1_000_000;
@@ -395,7 +410,7 @@ public class FindingPhase implements EvaluationPhase {
         dataCSVWriter.addValue(str(faultyInteractionsUpdated));
         // dataCSVWriter.addValue(fpNoise);
         // dataCSVWriter.addValue(fnNoise);
-        //        dataCSVWriter.addValue(configVerificationLimit);
+        // dataCSVWriter.addValue(configVerificationLimit);
         // dataCSVWriter.addValue(configCreationLimit);
 
         // dataCSVWriter.addValue(str(foundInteractions));
