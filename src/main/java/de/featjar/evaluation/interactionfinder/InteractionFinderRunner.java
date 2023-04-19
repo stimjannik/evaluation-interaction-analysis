@@ -102,6 +102,7 @@ public class InteractionFinderRunner {
             sb.append("null");
         }
         Files.writeString(outputPath, sb.toString());
+        System.exit(0);
     }
 
     public static LiteralList parseLiteralList(String arg) {
