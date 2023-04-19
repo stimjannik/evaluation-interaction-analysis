@@ -20,9 +20,7 @@
  */
 package de.featjar.evaluation.interactionfinder;
 
-import de.featjar.analysis.mig.solver.MIG;
-import de.featjar.analysis.mig.solver.MIGProvider;
-import de.featjar.analysis.mig.solver.Vertex;
+import de.featjar.analysis.mig.CoreDeadAnalysis;
 import de.featjar.analysis.sat4j.FastRandomConfigurationGenerator;
 import de.featjar.analysis.sat4j.RandomConfigurationGenerator;
 import de.featjar.analysis.sat4j.RandomConfigurationUpdater;
@@ -152,11 +150,8 @@ public class FindingPhase implements EvaluationPhase {
                     continue systemLoop;
                 }
 
-                MIG mig = model.get(MIGProvider.fromFormula(false, false));
-                LiteralList coreDead = new LiteralList(mig.getVertices().stream()
-                        .filter(Vertex::isCore)
-                        .mapToInt(Vertex::getVar)
-                        .toArray());
+                LiteralList coreDead = model.get(new CoreDeadAnalysis());
+                Logger.logInfo("Computed Core");
                 RandomConfigurationUpdater globalUpdater = new RandomConfigurationUpdater(model, new Random(0));
 
                 try {
@@ -232,12 +227,7 @@ public class FindingPhase implements EvaluationPhase {
                                                     startInteractionFinder(coreDead);
 
                                                     if (foundInteractions != null) {
-                                                        foundInteractionsMerged = LiteralList.merge(
-                                                                foundInteractions,
-                                                                model.getFormula()
-                                                                        .getVariableMap()
-                                                                        .get()
-                                                                        .getVariableCount());
+                                                        foundInteractionsMerged = LiteralList.merge(foundInteractions);
                                                         foundInteractionsMergedAndUpdated = globalUpdater
                                                                 .update(foundInteractionsMerged)
                                                                 .orElse(null);
@@ -245,6 +235,19 @@ public class FindingPhase implements EvaluationPhase {
                                                         foundInteractionsMerged = null;
                                                         foundInteractionsMergedAndUpdated = null;
                                                     }
+
+//                                                    if (t >= interactionSize
+//                                                            && !(foundInteractionsMergedAndUpdated != null
+//                                                                    && faultyInteractionsUpdated
+//                                                                            .get(0)
+//                                                                            .containsAll(
+//                                                                                    foundInteractionsMergedAndUpdated)
+//                                                                    && foundInteractionsMergedAndUpdated.containsAll(
+//                                                                            faultyInteractionsUpdated.get(0)))) {
+//                                                        Logger.logInfo(faultyInteractionsUpdated.get(0));
+//                                                        Logger.logInfo(foundInteractionsMergedAndUpdated);
+//                                                        throw new RuntimeException();
+//                                                    }
 
                                                     runDataWriter.writeLine();
                                                 } catch (final Exception e) {
@@ -283,6 +286,7 @@ public class FindingPhase implements EvaluationPhase {
                 String.valueOf(fpNoise), //
                 String.valueOf(fnNoise)
             });
+            readResult();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -316,19 +320,7 @@ public class FindingPhase implements EvaluationPhase {
 
             int exitCode = process.waitFor();
             if (exitCode == 0) {
-                String[] results = Files.lines(outPath).toArray(String[]::new);
-                elapsedTimeInMS = Long.parseLong(results[0]);
-                creationCounter = Integer.parseInt(results[1]);
-                verificationCounter = Integer.parseInt(results[2]);
-
-                if ("null".equals(results[3])) {
-                    foundInteractions = null;
-                } else {
-                    foundInteractions = new ArrayList<>(results.length - 3);
-                    for (int i = 3; i < results.length; i++) {
-                        foundInteractions.add(InteractionFinderRunner.parseLiteralList(results[i]));
-                    }
-                }
+                readResult();
             } else {
                 elapsedTimeInMS = -1;
                 creationCounter = -1;
@@ -348,6 +340,21 @@ public class FindingPhase implements EvaluationPhase {
             process.waitFor();
         } catch (IOException | InterruptedException e) {
             Logger.logError(e);
+        }
+    }
+
+    private void readResult() throws IOException {
+        String[] results = Files.lines(outPath).toArray(String[]::new);
+        elapsedTimeInMS = Long.parseLong(results[0]);
+        verificationCounter = Integer.parseInt(results[1]);
+
+        if ("null".equals(results[2])) {
+            foundInteractions = null;
+        } else {
+            foundInteractions = new ArrayList<>(results.length - 2);
+            for (int i = 2; i < results.length; i++) {
+                foundInteractions.add(InteractionFinderRunner.parseLiteralList(results[i]));
+            }
         }
     }
 
@@ -519,6 +526,7 @@ public class FindingPhase implements EvaluationPhase {
     private RandomConfigurationGenerator getConfigGenerator(Random random) {
         RandomConfigurationGenerator generator;
         generator = new FastRandomConfigurationGenerator();
+        generator.setTimeout(1_000_000);
         generator.setAllowDuplicates(false);
         generator.setRandom(random);
         generator.setLimit(interactionCount);

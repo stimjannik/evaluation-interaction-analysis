@@ -32,10 +32,10 @@ import de.featjar.clauses.LiteralList;
 import de.featjar.clauses.solutions.SolutionList;
 import de.featjar.clauses.solutions.analysis.InteractionFinder;
 import de.featjar.clauses.solutions.analysis.InteractionFinder.Statistic;
-import de.featjar.clauses.solutions.analysis.InteractionFinderCombinationForwardBackward;
 import de.featjar.clauses.solutions.analysis.InteractionFinderWrapper;
-import de.featjar.clauses.solutions.analysis.NaiveRandomInteractionFinder;
-import de.featjar.clauses.solutions.analysis.SingleInteractionFinder;
+import de.featjar.clauses.solutions.analysis.finder.InteractionFinderCombinationForwardBackward;
+import de.featjar.clauses.solutions.analysis.finder.NaiveRandomInteractionFinder;
+import de.featjar.clauses.solutions.analysis.finder.SingleInteractionFinder;
 import de.featjar.clauses.solutions.io.PartialListFormat;
 import de.featjar.evaluation.EvaluationPhase;
 import de.featjar.evaluation.Evaluator;
@@ -126,7 +126,6 @@ public class FindingPhaseDirectCall implements EvaluationPhase {
                 "MissedLiteralsCount",
                 "IncorrectlyFoundLiteralsCount",
                 "ConfigurationVerificationCount",
-                "ConfigurationCreationCount",
                 "Time");
         iterationDataWriter = evaluator.addCSVWriter(
                 "iterationData.csv",
@@ -134,8 +133,7 @@ public class FindingPhaseDirectCall implements EvaluationPhase {
                 "RunT",
                 "RunIteration",
                 "InteractionRemaining",
-                "RunConfigurationVerificationCount",
-                "RunConfigurationCreationCount");
+                "RunConfigurationVerificationCount");
 
         modelWriter.setLineWriter(this::writeModel);
         algorithmWriter.setLineWriter(this::writeAlgorithm);
@@ -263,12 +261,8 @@ public class FindingPhaseDirectCall implements EvaluationPhase {
                                                             long endTime = System.nanoTime();
 
                                                             if (foundInteractions != null) {
-                                                                foundInteractionsMerged = LiteralList.merge(
-                                                                        foundInteractions,
-                                                                        model.getFormula()
-                                                                                .getVariableMap()
-                                                                                .get()
-                                                                                .getVariableCount());
+                                                                foundInteractionsMerged =
+                                                                        LiteralList.merge(foundInteractions);
                                                                 foundInteractionsMergedAndUpdated = globalUpdater
                                                                         .update(foundInteractionsMerged)
                                                                         .orElse(null);
@@ -459,7 +453,6 @@ public class FindingPhaseDirectCall implements EvaluationPhase {
             dataCSVWriter.addValue(-1);
         }
         dataCSVWriter.addValue(lastStatistic.getVerifyCounter());
-        dataCSVWriter.addValue(lastStatistic.getCreationCounter());
         dataCSVWriter.addValue(elapsedTimeInMS);
     }
 
@@ -469,7 +462,6 @@ public class FindingPhaseDirectCall implements EvaluationPhase {
         dataCSVWriter.addValue(statistic.getIterationCounter());
         dataCSVWriter.addValue(statistic.getInteractionCounter());
         dataCSVWriter.addValue(statistic.getVerifyCounter());
-        dataCSVWriter.addValue(statistic.getCreationCounter());
     }
 
     private void logRun() {
