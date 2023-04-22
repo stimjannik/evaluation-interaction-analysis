@@ -20,7 +20,7 @@
  */
 package de.featjar.evaluation.interactionfinder;
 
-import de.featjar.analysis.mig.CoreDeadAnalysis;
+import de.featjar.analysis.sat4j.CoreDeadAnalysis;
 import de.featjar.analysis.sat4j.FastRandomConfigurationGenerator;
 import de.featjar.analysis.sat4j.RandomConfigurationGenerator;
 import de.featjar.analysis.sat4j.RandomConfigurationUpdater;
@@ -238,30 +238,17 @@ public class FindingPhase implements EvaluationPhase {
                                                         foundInteractionsMergedAndUpdated = null;
                                                     }
 
-                                                    //                                                    if (t >=
-                                                    // interactionSize
-                                                    //                                                            &&
-                                                    // !(foundInteractionsMergedAndUpdated != null
-                                                    //
-                                                    //  && faultyInteractionsUpdated
-                                                    //
-                                                    //          .get(0)
-                                                    //
-                                                    //          .containsAll(
-                                                    //
-                                                    //                  foundInteractionsMergedAndUpdated)
-                                                    //
-                                                    //  && foundInteractionsMergedAndUpdated.containsAll(
-                                                    //
-                                                    //          faultyInteractionsUpdated.get(0)))) {
-                                                    //
-                                                    // Logger.logInfo(faultyInteractionsUpdated.get(0));
-                                                    //
-                                                    // Logger.logInfo(foundInteractionsMergedAndUpdated);
-                                                    //                                                        throw new
-                                                    // RuntimeException();
-                                                    //                                                    }
-
+//                                                    if (t >= interactionSize
+//                                                            && !(foundInteractionsMergedAndUpdated != null
+//                                                                    && faultyInteractionsUpdated
+//                                                                            .get(0)
+//                                                                            .containsAll(
+//                                                                                    foundInteractionsMergedAndUpdated)
+//                                                                    && foundInteractionsMergedAndUpdated.containsAll(
+//                                                                            faultyInteractionsUpdated.get(0)))) {
+//                                                        Logger.logInfo(faultyInteractionsUpdated.get(0) + " -> "
+//                                                                + foundInteractionsMergedAndUpdated);
+//                                                    }
                                                     runDataWriter.writeLine();
                                                 } catch (final Exception e) {
                                                     Logger.logError(e);
