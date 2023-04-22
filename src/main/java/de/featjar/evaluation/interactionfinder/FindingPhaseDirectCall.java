@@ -31,7 +31,6 @@ import de.featjar.clauses.CNFProvider;
 import de.featjar.clauses.LiteralList;
 import de.featjar.clauses.solutions.SolutionList;
 import de.featjar.clauses.solutions.analysis.InteractionFinder;
-import de.featjar.clauses.solutions.analysis.InteractionFinder.Statistic;
 import de.featjar.clauses.solutions.analysis.InteractionFinderWrapper;
 import de.featjar.clauses.solutions.analysis.finder.InteractionFinderCombinationForwardBackward;
 import de.featjar.clauses.solutions.analysis.finder.NaiveRandomInteractionFinder;
@@ -63,7 +62,7 @@ public class FindingPhaseDirectCall implements EvaluationPhase {
     private List<InteractionFinder> algorithmList;
     private List<String> algorithmNameList;
 
-    private CSVWriter runDataWriter, iterationDataWriter, modelWriter, algorithmWriter;
+    private CSVWriter runDataWriter, modelWriter, algorithmWriter;
     private int algorithmIndex, algorithmIteration;
     private ModelRepresentation model;
 
@@ -75,17 +74,14 @@ public class FindingPhaseDirectCall implements EvaluationPhase {
     private int t;
     private int interactionSize;
     private int interactionCount;
-    private int configCreationLimit;
-    private int configVerificationLimit;
     private double fpNoise;
     private double fnNoise;
     private int runID;
+    private InteractionFinder algorithm;
 
     private List<LiteralList> foundInteractions;
     private LiteralList foundInteractionsMerged;
     private LiteralList foundInteractionsMergedAndUpdated;
-    private Statistic lastStatistic;
-    private Statistic statistic;
     private long elapsedTimeInMS;
 
     @Override
@@ -127,18 +123,10 @@ public class FindingPhaseDirectCall implements EvaluationPhase {
                 "IncorrectlyFoundLiteralsCount",
                 "ConfigurationVerificationCount",
                 "Time");
-        iterationDataWriter = evaluator.addCSVWriter(
-                "iterationData.csv",
-                "RunID",
-                "RunT",
-                "RunIteration",
-                "InteractionRemaining",
-                "RunConfigurationVerificationCount");
 
         modelWriter.setLineWriter(this::writeModel);
         algorithmWriter.setLineWriter(this::writeAlgorithm);
         runDataWriter.setLineWriter(this::writeRunData);
-        iterationDataWriter.setLineWriter(this::writeIterationData);
 
         final ModelReader<Formula> mr = new ModelReader<>();
         mr.setPathToFiles(interactionFinderEvaluator.modelPath);
@@ -218,94 +206,73 @@ public class FindingPhaseDirectCall implements EvaluationPhase {
 
                                     algorithmLoop:
                                     for (algorithmIndex = 0; algorithmIndex < algorithmList.size(); algorithmIndex++) {
-                                        InteractionFinder algorithm = algorithmList.get(algorithmIndex);
-                                        for (Integer configCreationLimitValue :
-                                                interactionFinderEvaluator.configCreationLimitProperty.getValue()) {
-                                            configCreationLimit = configCreationLimitValue;
-                                            for (Integer configVerificationLimitValue :
-                                                    interactionFinderEvaluator.configVerificationLimitProperty
-                                                            .getValue()) {
-                                                configVerificationLimit = configVerificationLimitValue;
-                                                for (Integer tValue : interactionFinderEvaluator.tProperty.getValue()) {
-                                                    t = tValue;
-                                                    algorithm.setConfigurationCreationLimit(configCreationLimit);
-                                                    algorithm.setConfigurationVerificationLimit(
-                                                            configVerificationLimit);
-                                                    algorithm.setCore(coreDead);
-                                                    algorithm.setVerifier(verifier);
+                                        algorithm = algorithmList.get(algorithmIndex);
+                                        for (Integer tValue : interactionFinderEvaluator.tProperty.getValue()) {
+                                            t = tValue;
+                                            algorithm.setCore(coreDead);
+                                            algorithm.setVerifier(verifier);
 
-                                                    for (algorithmIteration = 1;
-                                                            algorithmIteration
-                                                                    <= evaluator.algorithmIterations.getValue();
-                                                            algorithmIteration++) {
-                                                        runID++;
+                                            for (algorithmIteration = 1;
+                                                    algorithmIteration <= evaluator.algorithmIterations.getValue();
+                                                    algorithmIteration++) {
+                                                runID++;
 
-                                                        evaluator.tabFormatter.setTabLevel(2);
-                                                        logRun();
-                                                        evaluator.tabFormatter.setTabLevel(3);
+                                                evaluator.tabFormatter.setTabLevel(2);
+                                                logRun();
+                                                evaluator.tabFormatter.setTabLevel(3);
 
-                                                        algorithm.reset();
-                                                        algorithm.setUpdater(new RandomConfigurationUpdater(
-                                                                model,
-                                                                new Random(evaluator.randomSeed.getValue()
-                                                                        + evaluator.systemIteration)));
-                                                        algorithm.addConfigurations(faultyConfigs);
+                                                algorithm.reset();
+                                                algorithm.setUpdater(new RandomConfigurationUpdater(
+                                                        model,
+                                                        new Random(evaluator.randomSeed.getValue()
+                                                                + evaluator.systemIteration)));
+                                                algorithm.addConfigurations(faultyConfigs);
 
-                                                        String sampleFileName = interactionFinderEvaluator.getSystemID()
-                                                                + "_" + interactionFinderEvaluator.systemIteration + "_"
-                                                                + algorithmIndex + "_" + algorithmIteration + "_"
-                                                                + runID + "_sample." + sampleFormat.getFileExtension();
-                                                        try {
-                                                            long startTime = System.nanoTime();
-                                                            foundInteractions = algorithm.find(t);
-                                                            long endTime = System.nanoTime();
+                                                String sampleFileName = interactionFinderEvaluator.getSystemID()
+                                                        + "_" + interactionFinderEvaluator.systemIteration + "_"
+                                                        + algorithmIndex + "_" + algorithmIteration + "_"
+                                                        + runID + "_sample." + sampleFormat.getFileExtension();
+                                                try {
+                                                    long startTime = System.nanoTime();
+                                                    foundInteractions = algorithm.find(t);
+                                                    long endTime = System.nanoTime();
 
-                                                            if (foundInteractions != null) {
-                                                                foundInteractionsMerged =
-                                                                        LiteralList.merge(foundInteractions);
-                                                                foundInteractionsMergedAndUpdated = globalUpdater
-                                                                        .update(foundInteractionsMerged)
-                                                                        .orElse(null);
-                                                            } else {
-                                                                foundInteractionsMerged = null;
-                                                                foundInteractionsMergedAndUpdated = null;
-                                                            }
-                                                            // if (t >= interactionSize
-                                                            // &&
-                                                            // (!faultyInteractionsUpdated.get(0).containsAll(
-                                                            // foundInteractionsMergedAndUpdated)
-                                                            // ||
-                                                            // !foundInteractionsMergedAndUpdated.containsAll(
-                                                            // faultyInteractionsUpdated.get(0)))) {
-                                                            // Logger.logInfo(faultyInteractionsUpdated.get(0));
-                                                            // Logger.logInfo(foundInteractionsMergedAndUpdated);
-                                                            // throw new RuntimeException();
-                                                            // }
-                                                            List<Statistic> statistics = algorithm.getStatistics();
-                                                            lastStatistic = statistics.get(statistics.size() - 1);
-                                                            elapsedTimeInMS = (endTime - startTime) / 1_000_000;
-
-                                                            runDataWriter.writeLine();
-                                                            for (Statistic s : statistics) {
-                                                                statistic = s;
-                                                                iterationDataWriter.writeLine();
-                                                            }
-                                                            // final SolutionList sample =
-                                                            // new SolutionList(variables, algorithm.getSample());
-                                                            // if (sample != null) {
-                                                            // IO.save(
-                                                            // sample,
-                                                            // interactionFinderEvaluator.outputPath.resolve(
-                                                            // sampleFileName),
-                                                            // sampleFormat);
-                                                            // }
-                                                        } catch (final Exception e) {
-                                                            Logger.logError(
-                                                                    "Could not save sample file " + sampleFileName);
-                                                            Logger.logError(e);
-                                                            continue algorithmLoop;
-                                                        }
+                                                    if (foundInteractions != null) {
+                                                        foundInteractionsMerged = LiteralList.merge(foundInteractions);
+                                                        foundInteractionsMergedAndUpdated = globalUpdater
+                                                                .update(foundInteractionsMerged)
+                                                                .orElse(null);
+                                                    } else {
+                                                        foundInteractionsMerged = null;
+                                                        foundInteractionsMergedAndUpdated = null;
                                                     }
+                                                    // if (t >= interactionSize
+                                                    // &&
+                                                    // (!faultyInteractionsUpdated.get(0).containsAll(
+                                                    // foundInteractionsMergedAndUpdated)
+                                                    // ||
+                                                    // !foundInteractionsMergedAndUpdated.containsAll(
+                                                    // faultyInteractionsUpdated.get(0)))) {
+                                                    // Logger.logInfo(faultyInteractionsUpdated.get(0));
+                                                    // Logger.logInfo(foundInteractionsMergedAndUpdated);
+                                                    // throw new RuntimeException();
+                                                    // }
+                                                    elapsedTimeInMS = (endTime - startTime) / 1_000_000;
+
+                                                    runDataWriter.writeLine();
+                                                    // final SolutionList sample =
+                                                    // new SolutionList(variables, algorithm.getSample());
+                                                    // if (sample != null) {
+                                                    // IO.save(
+                                                    // sample,
+                                                    // interactionFinderEvaluator.outputPath.resolve(
+                                                    // sampleFileName),
+                                                    // sampleFormat);
+                                                    // }
+                                                } catch (final Exception e) {
+                                                    Logger.logError("Could not save sample file " + sampleFileName);
+                                                    Logger.logError(e);
+                                                    continue algorithmLoop;
                                                 }
                                             }
                                         }
@@ -452,16 +419,8 @@ public class FindingPhaseDirectCall implements EvaluationPhase {
             dataCSVWriter.addValue(-1);
             dataCSVWriter.addValue(-1);
         }
-        dataCSVWriter.addValue(lastStatistic.getVerifyCounter());
+        dataCSVWriter.addValue(algorithm.getVerifyCounter());
         dataCSVWriter.addValue(elapsedTimeInMS);
-    }
-
-    protected void writeIterationData(CSVWriter dataCSVWriter) {
-        dataCSVWriter.addValue(runID);
-        dataCSVWriter.addValue(statistic.getT());
-        dataCSVWriter.addValue(statistic.getIterationCounter());
-        dataCSVWriter.addValue(statistic.getInteractionCounter());
-        dataCSVWriter.addValue(statistic.getVerifyCounter());
     }
 
     private void logRun() {
@@ -489,10 +448,6 @@ public class FindingPhaseDirectCall implements EvaluationPhase {
         sb.append(interactionFinderEvaluator.algorithmIterations.getValue());
         sb.append(" | (");
         sb.append(t);
-        sb.append(", ");
-        sb.append(configVerificationLimit);
-        sb.append(", ");
-        sb.append(configCreationLimit);
         sb.append(", ");
         sb.append(fpNoise);
         sb.append(", ");

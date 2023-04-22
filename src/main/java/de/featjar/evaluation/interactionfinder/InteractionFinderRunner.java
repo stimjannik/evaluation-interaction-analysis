@@ -22,8 +22,8 @@ package de.featjar.evaluation.interactionfinder;
 
 import de.featjar.analysis.sat4j.RandomConfigurationUpdater;
 import de.featjar.clauses.LiteralList;
+import de.featjar.clauses.solutions.analysis.IncInteractionFinder;
 import de.featjar.clauses.solutions.analysis.InteractionFinder;
-import de.featjar.clauses.solutions.analysis.InteractionFinder.Statistic;
 import de.featjar.clauses.solutions.analysis.InteractionFinderWrapper;
 import de.featjar.clauses.solutions.analysis.finder.InteractionFinderCombinationForwardBackward;
 import de.featjar.clauses.solutions.analysis.finder.InteractionFinderCombinationForwardBackwardOld;
@@ -80,14 +80,14 @@ public class InteractionFinderRunner {
         List<LiteralList> foundInteractions = algorithm.find(t);
         long endTime = System.nanoTime();
 
-        List<Statistic> statistics = algorithm.getStatistics();
-        Statistic lastStatistic = statistics.get(statistics.size() - 1);
+        //        List<Statistic> statistics = algorithm.getStatistics();
+        //        Statistic lastStatistic = statistics.get(statistics.size() - 1);
         long elapsedTimeInMS = (endTime - startTime) / 1_000_000;
 
         StringBuilder sb = new StringBuilder();
         sb.append(elapsedTimeInMS);
         sb.append("\n");
-        sb.append(lastStatistic.getVerifyCounter());
+        sb.append(algorithm.getVerifyCounter());
         sb.append("\n");
         if (foundInteractions != null) {
             for (LiteralList foundInteraction : foundInteractions) {
@@ -114,75 +114,23 @@ public class InteractionFinderRunner {
     }
 
     private static InteractionFinder parseAlgorithm(String algorithm) {
-        InteractionFinder interactionFinderRandom;
         switch (algorithm) {
-            case "NaiveRandom": {
-                interactionFinderRandom = new InteractionFinderWrapper(new NaiveRandomInteractionFinder(), true, false);
-                break;
-            }
-            case "IterativeNaiveRandom": {
-                interactionFinderRandom = new InteractionFinderWrapper(new NaiveRandomInteractionFinder(), true, true);
-                break;
-            }
-            case "Single": {
-                interactionFinderRandom = new InteractionFinderWrapper(new SingleInteractionFinder(), true, false);
-                break;
-            }
-            case "IterativeSingle": {
-                interactionFinderRandom = new InteractionFinderWrapper(new SingleInteractionFinder(), true, true);
-                break;
-            }
-            case "ForwardBackward": {
-                interactionFinderRandom = new InteractionFinderCombinationForwardBackward();
-                break;
-            }
-            case "ForwardBackwardOld": {
-                interactionFinderRandom = new InteractionFinderCombinationForwardBackwardOld();
-                break;
-            }
-            case "Single2": {
-                interactionFinderRandom = new InteractionFinderWrapper(new SingleInteractionFinder(), true, false);
-                interactionFinderRandom.setLimitFactor(2);
-                break;
-            }
-            case "IterativeSingle2": {
-                interactionFinderRandom = new InteractionFinderWrapper(new SingleInteractionFinder(), true, true);
-                interactionFinderRandom.setLimitFactor(2);
-                break;
-            }
-            case "ForwardBackward2": {
-                interactionFinderRandom = new InteractionFinderCombinationForwardBackward();
-                interactionFinderRandom.setLimitFactor(2);
-                break;
-            }
-            case "ForwardBackwardOld2": {
-                interactionFinderRandom = new InteractionFinderCombinationForwardBackwardOld();
-                interactionFinderRandom.setLimitFactor(2);
-                break;
-            }
-            case "Single10": {
-                interactionFinderRandom = new InteractionFinderWrapper(new SingleInteractionFinder(), true, false);
-                interactionFinderRandom.setLimitFactor(10);
-                break;
-            }
-            case "IterativeSingle10": {
-                interactionFinderRandom = new InteractionFinderWrapper(new SingleInteractionFinder(), true, true);
-                interactionFinderRandom.setLimitFactor(10);
-                break;
-            }
-            case "ForwardBackward10": {
-                interactionFinderRandom = new InteractionFinderCombinationForwardBackward();
-                interactionFinderRandom.setLimitFactor(10);
-                break;
-            }
-            case "ForwardBackwardOld10": {
-                interactionFinderRandom = new InteractionFinderCombinationForwardBackwardOld();
-                interactionFinderRandom.setLimitFactor(10);
-                break;
-            }
+            case "NaiveRandom":
+                return new InteractionFinderWrapper(new NaiveRandomInteractionFinder(), true, false);
+            case "IterativeNaiveRandom":
+                return new InteractionFinderWrapper(new NaiveRandomInteractionFinder(), true, true);
+            case "Single":
+                return new InteractionFinderWrapper(new SingleInteractionFinder(), true, false);
+            case "IterativeSingle":
+                return new InteractionFinderWrapper(new SingleInteractionFinder(), true, true);
+            case "ForwardBackward":
+                return new InteractionFinderCombinationForwardBackward();
+            case "ForwardBackwardOld":
+                return new InteractionFinderCombinationForwardBackwardOld();
+            case "ForwardBackwardNew":
+                return new IncInteractionFinder();
             default:
-                interactionFinderRandom = null;
+                return null;
         }
-        return interactionFinderRandom;
     }
 }
