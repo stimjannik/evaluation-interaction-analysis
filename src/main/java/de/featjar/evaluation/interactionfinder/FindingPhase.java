@@ -237,18 +237,6 @@ public class FindingPhase implements EvaluationPhase {
                                                         foundInteractionsMerged = null;
                                                         foundInteractionsMergedAndUpdated = null;
                                                     }
-
-//                                                    if (t >= interactionSize
-//                                                            && !(foundInteractionsMergedAndUpdated != null
-//                                                                    && faultyInteractionsUpdated
-//                                                                            .get(0)
-//                                                                            .containsAll(
-//                                                                                    foundInteractionsMergedAndUpdated)
-//                                                                    && foundInteractionsMergedAndUpdated.containsAll(
-//                                                                            faultyInteractionsUpdated.get(0)))) {
-//                                                        Logger.logInfo(faultyInteractionsUpdated.get(0) + " -> "
-//                                                                + foundInteractionsMergedAndUpdated);
-//                                                    }
                                                     runDataWriter.writeLine();
                                                 } catch (final Exception e) {
                                                     Logger.logError(e);
@@ -312,24 +300,22 @@ public class FindingPhase implements EvaluationPhase {
                     encodeLiterals(faultyInteractions), //
                     String.valueOf(fpNoise), //
                     String.valueOf(fnNoise));
+            processBuilder.redirectErrorStream(true);
             Process process = processBuilder.start();
-            try (BufferedReader prcErr = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-                try (BufferedReader prcOut = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                    String line = null;
-                    while ((line = prcOut.readLine()) != null) {}
-                    while ((line = prcErr.readLine()) != null) {
-                        Logger.logError(line);
-                    }
+            try (BufferedReader prcOut = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line = null;
+                while ((line = prcOut.readLine()) != null) {
+                    Logger.logError(line);
+                }
 
-                    int exitCode = process.waitFor();
-                    if (exitCode == 0) {
-                        readResult();
-                    } else {
-                        elapsedTimeInMS = -1;
-                        creationCounter = -1;
-                        verificationCounter = -1;
-                        foundInteractions = null;
-                    }
+                int exitCode = process.waitFor();
+                if (exitCode == 0) {
+                    readResult();
+                } else {
+                    elapsedTimeInMS = -1;
+                    creationCounter = -1;
+                    verificationCounter = -1;
+                    foundInteractions = null;
                 }
             }
         } catch (IOException | InterruptedException e) {
