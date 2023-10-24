@@ -1,0 +1,70 @@
+/*
+ * Copyright (C) 2023 FeatJAR-Development-Team
+ *
+ * This file is part of FeatJAR-evaluation-interaction-analysis.
+ *
+ * evaluation-interaction-analysis is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3.0 of the License,
+ * or (at your option) any later version.
+ *
+ * evaluation-interaction-analysis is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with evaluation-interaction-analysis. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * See <https://github.com/FeatJAR> for further information.
+ */
+package de.featjar.evaluation.interactionfinder;
+
+import de.featjar.base.data.IIntegerList;
+import de.featjar.formula.analysis.bool.BooleanAssignment;
+import de.featjar.formula.analysis.bool.BooleanSolution;
+import de.featjar.formula.analysis.combinations.IncInteractionFinder;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/**
+ * Detect interactions from given set of configurations.
+ *
+ * @author Sebastian Krieter
+ */
+public class RandomInteractionFinder extends IncInteractionFinder {
+
+    public List<BooleanAssignment> find(int tmax) {
+        List<int[]> result = findT(tmax);
+        return isPotentialInteraction(result)
+                ? List.of((BooleanAssignment) IIntegerList.merge(
+                        result.stream().map(BooleanAssignment::new).collect(Collectors.toList()),
+                        BooleanAssignment::new))
+                : null;
+    }
+
+    private List<int[]> findT(int t) {
+        List<int[]> curInteractionList = computePotentialInteractions(t);
+        if (curInteractionList == null) {
+            return null;
+        }
+
+        while (curInteractionList.size() > 1 //
+                && verifyCounter < configurationVerificationLimit) {
+            BooleanSolution bestConfig =
+                    updater.complete(null, null, curInteractionList).orElse(null);
+            if (bestConfig == null) {
+                break;
+            }
+            Map<Boolean, List<int[]>> partitions = group(curInteractionList, bestConfig);
+            List<int[]> include = partitions.get(Boolean.TRUE);
+            List<int[]> exclude = partitions.get(Boolean.FALSE);
+
+            final boolean pass = verify(bestConfig);
+            curInteractionList = pass ? exclude : include;
+        }
+
+        return curInteractionList.isEmpty() ? null : curInteractionList;
+    }
+}

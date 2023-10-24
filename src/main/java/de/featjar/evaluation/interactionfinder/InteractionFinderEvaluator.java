@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2023 Sebastian Krieter
+ * Copyright (C) 2023 FeatJAR-Development-Team
  *
- * This file is part of evaluation-interaction-analysis.
+ * This file is part of FeatJAR-evaluation-interaction-analysis.
  *
  * evaluation-interaction-analysis is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -16,30 +16,38 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with evaluation-interaction-analysis. If not, see <https://www.gnu.org/licenses/>.
  *
- * See <> for further information.
+ * See <https://github.com/FeatJAR> for further information.
  */
 package de.featjar.evaluation.interactionfinder;
 
+import de.featjar.base.cli.ListOption;
+import de.featjar.base.cli.Option;
 import de.featjar.evaluation.Evaluator;
-import de.featjar.evaluation.properties.ListProperty;
-import de.featjar.evaluation.properties.Property;
+import java.util.ArrayList;
+import java.util.List;
 
 public class InteractionFinderEvaluator extends Evaluator {
 
-    Property<Integer> memoryProperty = new Property<>("memory", Property.IntegerConverter, 8);
-    ListProperty<Integer> tProperty = new ListProperty<>("t", Property.IntegerConverter);
-    ListProperty<Integer> interactionSizeProperty = new ListProperty<>("interactionSize", Property.IntegerConverter);
-    ListProperty<Integer> interactionCountProperty = new ListProperty<>("interactionCount", Property.IntegerConverter);
-    ListProperty<Double> fpNoiseProperty = new ListProperty<>("fpNoise", Property.DoubleConverter);
-    ListProperty<Double> fnNoiseProperty = new ListProperty<>("fnNoise", Property.DoubleConverter);
-    ListProperty<Integer> configVerificationLimitProperty =
-            new ListProperty<>("configVerificationLimit", Property.IntegerConverter);
-    ListProperty<Integer> configCreationLimitProperty =
-            new ListProperty<>("configCreationLimit", Property.IntegerConverter);
-    ListProperty<String> algorithmsProperty = new ListProperty<>("algorithm", Property.StringConverter);
+    public static final Option<Integer> memoryOption = new Option<>("memory", Option.IntegerParser, 8);
+    public static final ListOption<Integer> tOption = new ListOption<>("t", Option.IntegerParser);
+    public static final ListOption<Integer> interactionSizeOption =
+            new ListOption<>("interactionSize", Option.IntegerParser);
+    public static final ListOption<Integer> interactionCountOption =
+            new ListOption<>("interactionCount", Option.IntegerParser);
+    public static final ListOption<Double> fpNoiseOption = new ListOption<>("fpNoise", Option.DoubleParser);
+    public static final ListOption<Double> fnNoiseOption = new ListOption<>("fnNoise", Option.DoubleParser);
+    public static final ListOption<String> algorithmsOption = new ListOption<>("algorithm", Option.StringParser);
 
     @Override
-    public String getName() {
-        return "interaction-finder";
+    public List<Option<?>> getOptions() {
+        ArrayList<Option<?>> options = new ArrayList<>(super.getOptions());
+        options.add(memoryOption);
+        options.add(tOption);
+        options.add(interactionSizeOption);
+        options.add(interactionCountOption);
+        options.add(fpNoiseOption);
+        options.add(fnNoiseOption);
+        options.add(algorithmsOption);
+        return options;
     }
 }

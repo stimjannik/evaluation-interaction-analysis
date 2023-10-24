@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2023 Sebastian Krieter
+ * Copyright (C) 2023 FeatJAR-Development-Team
  *
- * This file is part of evaluation-interaction-analysis.
+ * This file is part of FeatJAR-evaluation-interaction-analysis.
  *
  * evaluation-interaction-analysis is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -16,31 +16,28 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with evaluation-interaction-analysis. If not, see <https://www.gnu.org/licenses/>.
  *
- * See <> for further information.
+ * See <https://github.com/FeatJAR> for further information.
  */
 package de.featjar.evaluation.interactionfinder;
 
-import de.featjar.analysis.sat4j.RandomConfigurationUpdater;
-import de.featjar.clauses.LiteralList;
-import de.featjar.clauses.solutions.analysis.InteractionFinder;
-import de.featjar.clauses.solutions.analysis.InteractionFinder.Statistic;
-import de.featjar.clauses.solutions.analysis.InteractionFinderCombinationForwardBackward;
-import de.featjar.clauses.solutions.analysis.InteractionFinderWrapper;
-import de.featjar.clauses.solutions.analysis.NaiveRandomInteractionFinder;
-import de.featjar.clauses.solutions.analysis.SingleInteractionFinder;
-import de.featjar.clauses.solutions.io.ListFormat;
-import de.featjar.formula.ModelRepresentation;
-import de.featjar.util.extension.ExtensionLoader;
-import de.featjar.util.io.IO;
-import de.featjar.util.logging.Logger;
+import de.featjar.base.FeatJAR;
+import de.featjar.base.FeatJAR.Configuration;
+import de.featjar.base.computation.Cache;
+import de.featjar.base.io.IO;
+import de.featjar.base.log.Log;
+import de.featjar.formula.analysis.bool.ABooleanAssignment;
+import de.featjar.formula.analysis.bool.BooleanAssignment;
+import de.featjar.formula.analysis.bool.BooleanAssignmentSpace;
+import de.featjar.formula.analysis.bool.BooleanClause;
+import de.featjar.formula.analysis.combinations.IncInteractionFinder;
+import de.featjar.formula.analysis.sat4j.RandomConfigurationUpdater;
+import de.featjar.formula.io.csv.BooleanAssignmentSpaceCSVFormat;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
-import java.util.stream.Collectors;
 
 /**
  * Command line interface for interaction finder evaluation.
@@ -50,49 +47,47 @@ import java.util.stream.Collectors;
 public class InteractionFinderRunner {
 
     public static void main(String[] args) throws IOException {
-        ExtensionLoader.load();
+        if (!FeatJAR.isInitialized()) {
+            final Configuration configuration = new Configuration();
+            configuration.logConfig.logAtMost(Log.Verbosity.ERROR);
+            configuration.cacheConfig.setCachePolicy(Cache.CachePolicy.CACHE_TOP_LEVEL);
+            FeatJAR.initialize(configuration);
+        }
 
-        ModelRepresentation model = ModelRepresentation.load(Paths.get(args[0])).orElse(Logger::logProblems);
-        List<LiteralList> sample = IO.load(Paths.get(args[1]), new ListFormat())
-                .orElse(Logger::logProblems)
-                .getSolutions();
-        Path outputPath = Paths.get(args[2]);
-        InteractionFinder algorithm = parseAlgorithm(args[3]);
-        int t = Integer.parseInt(args[4]);
-        LiteralList core = parseLiteralList(args[5]);
+        BooleanAssignmentSpace model = load(args[0]);
+        BooleanAssignmentSpace sample = load(args[1]);
+        BooleanAssignmentSpace interaction = load(args[2]);
+        Path outputPath = Paths.get(args[3]);
+
+        IncInteractionFinder algorithm = parseAlgorithm(args[4]);
+        int t = Integer.parseInt(args[5]);
         Long seed = Long.parseLong(args[6]);
 
-        List<LiteralList> interactions = Arrays.stream(args[7].split(","))
-                .map(InteractionFinderRunner::parseLiteralList)
-                .collect(Collectors.toList());
-
-        Double fpNoise = Double.parseDouble(args[8]);
-        Double fnNoise = Double.parseDouble(args[9]);
+        Double fpNoise = Double.parseDouble(args[7]);
+        Double fnNoise = Double.parseDouble(args[8]);
 
         algorithm.reset();
-        algorithm.setCore(core);
-        algorithm.setVerifier(new ConfigurationOracle(interactions, fpNoise, fnNoise));
-        algorithm.setUpdater(new RandomConfigurationUpdater(model, new Random(seed)));
-        algorithm.addConfigurations(sample);
+        algorithm.setCore(model.getGroups().get(1).get(0).toClause());
+        algorithm.setVerifier(
+                new ConfigurationOracle(interaction.toClauseList(0).getAll(), fpNoise, fnNoise));
+        algorithm.setUpdater(new RandomConfigurationUpdater(model.toClauseList(), seed));
+        List<? extends ABooleanAssignment> list = sample.getGroups().get(0);
+        algorithm.addConfigurations(list);
 
         long startTime = System.nanoTime();
-        List<LiteralList> foundInteractions = algorithm.find(t);
+        List<BooleanAssignment> foundInteractions = algorithm.find(t);
         long endTime = System.nanoTime();
 
-        List<Statistic> statistics = algorithm.getStatistics();
-        Statistic lastStatistic = statistics.get(statistics.size() - 1);
         long elapsedTimeInMS = (endTime - startTime) / 1_000_000;
 
         StringBuilder sb = new StringBuilder();
         sb.append(elapsedTimeInMS);
         sb.append("\n");
-        sb.append(lastStatistic.getCreationCounter());
-        sb.append("\n");
-        sb.append(lastStatistic.getVerifyCounter());
+        sb.append(algorithm.getVerifyCounter());
         sb.append("\n");
         if (foundInteractions != null) {
-            for (LiteralList foundInteraction : foundInteractions) {
-                for (int l : foundInteraction.getLiterals()) {
+            for (BooleanAssignment foundInteraction : foundInteractions) {
+                for (int l : foundInteraction.get()) {
                     sb.append(l);
                     sb.append(";");
                 }
@@ -105,40 +100,28 @@ public class InteractionFinderRunner {
         Files.writeString(outputPath, sb.toString());
     }
 
-    public static LiteralList parseLiteralList(String arg) {
+    private static BooleanAssignmentSpace load(String path) {
+        return IO.load(Paths.get(path), new BooleanAssignmentSpaceCSVFormat()).orElseThrow();
+    }
+
+    public static BooleanClause parseLiteralList(String arg) {
         return ("null".equals(arg))
                 ? null
-                : new LiteralList(Arrays.stream(arg.split(";"))
+                : new BooleanClause(Arrays.stream(arg.split(";"))
                         .mapToInt(Integer::parseInt)
                         .toArray());
     }
 
-    private static InteractionFinder parseAlgorithm(String algorithm) {
-        InteractionFinder interactionFinderRandom;
+    private static IncInteractionFinder parseAlgorithm(String algorithm) {
         switch (algorithm) {
-            case "NaiveRandom": {
-                interactionFinderRandom = new InteractionFinderWrapper(new NaiveRandomInteractionFinder(), true, false);
-                break;
+            case "inciident": {
+                return new IncInteractionFinder();
             }
-            case "Single": {
-                interactionFinderRandom = new InteractionFinderWrapper(new SingleInteractionFinder(), true, false);
-                break;
-            }
-            case "IterativeNaiveRandom": {
-                interactionFinderRandom = new InteractionFinderWrapper(new NaiveRandomInteractionFinder(), true, true);
-                break;
-            }
-            case "IterativeSingle": {
-                interactionFinderRandom = new InteractionFinderWrapper(new SingleInteractionFinder(), true, true);
-                break;
-            }
-            case "ForwardBackward": {
-                interactionFinderRandom = new InteractionFinderCombinationForwardBackward();
-                break;
+            case "random": {
+                return new RandomInteractionFinder();
             }
             default:
-                interactionFinderRandom = null;
+                throw new IllegalArgumentException(algorithm);
         }
-        return interactionFinderRandom;
     }
 }

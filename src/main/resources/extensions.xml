@@ -1,9 +1,12 @@
 <?xml version="1.0"?>
 <extensions>
-	<point id="de.featjar.util.cli.CLIFunctionManager">
-	    <extension id="de.featjar.evaluation.interactionfinder.InteractionFinderEvaluator" />
-	</point>
 	<point id="de.featjar.evaluation.EvaluationPhaseExtensionPoint">
-	    <extension id="de.featjar.evaluation.interactionfinder.FindingPhase" />
+	    <extension id="de.featjar.evaluation.interactionfinder.phase.PrepareFeatureModelPhase" />
+	    <extension id="de.featjar.evaluation.interactionfinder.phase.CreateInteractionsPhase" />
+	    <extension id="de.featjar.evaluation.interactionfinder.phase.ReadInteractionsPhase" />
+	    <extension id="de.featjar.evaluation.interactionfinder.phase.FindingPhase" />
+	</point>
+	<point id="de.featjar.base.cli.Commands">
+		<extension id="de.featjar.evaluation.interactionfinder.InteractionFinderEvaluator" />
 	</point>
 </extensions>
