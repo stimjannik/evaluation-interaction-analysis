@@ -35,6 +35,8 @@ import java.util.stream.Collectors;
  */
 public class RandomInteractionFinder extends IncInteractionFinder {
 
+    private static final double limitFactor = 10.0 / Math.log(2);
+
     public List<BooleanAssignment> find(int tmax) {
         List<int[]> result = findT(tmax);
         return isPotentialInteraction(result)
@@ -49,6 +51,7 @@ public class RandomInteractionFinder extends IncInteractionFinder {
         if (curInteractionList == null) {
             return null;
         }
+        setConfigurationVerificationLimit((int) Math.ceil(limitFactor * Math.log(curInteractionList.size())));
 
         while (curInteractionList.size() > 1 //
                 && verifyCounter < configurationVerificationLimit) {
