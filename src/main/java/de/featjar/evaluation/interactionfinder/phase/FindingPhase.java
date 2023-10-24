@@ -33,8 +33,8 @@ import de.featjar.formula.analysis.VariableMap;
 import de.featjar.formula.analysis.bool.ABooleanAssignment;
 import de.featjar.formula.analysis.bool.BooleanAssignment;
 import de.featjar.formula.analysis.bool.BooleanAssignmentSpace;
+import de.featjar.formula.analysis.bool.BooleanClause;
 import de.featjar.formula.analysis.bool.BooleanClauseList;
-import de.featjar.formula.analysis.bool.BooleanSolution;
 import de.featjar.formula.analysis.sat4j.ComputeCoreDeadVariablesSAT4J;
 import de.featjar.formula.io.csv.BooleanAssignmentSpaceCSVFormat;
 import java.io.BufferedReader;
@@ -54,7 +54,7 @@ import java.util.stream.Collectors;
  */
 public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator> {
 
-    private List<BooleanSolution> faultyInteractionsUpdated;
+    private List<BooleanClause> faultyInteractionsUpdated;
     private List<ABooleanAssignment> foundInteractions;
     private ABooleanAssignment foundInteractionsMerged;
     private ABooleanAssignment foundInteractionsMergedAndUpdated;
@@ -128,7 +128,7 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
 
                     BooleanAssignmentSpace interaction = IO.load(interactionFile, new BooleanAssignmentSpaceCSVFormat())
                             .orElseThrow();
-                    faultyInteractionsUpdated = interaction.toSolutionList(1).getAll();
+                    faultyInteractionsUpdated = interaction.toClauseList(1).getAll();
 
                     extracted(evaluator, interactionFile, samplePathString, modelPathString, outputPath);
                     if (foundInteractions != null) {
@@ -316,8 +316,24 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
     public void run(InteractionFinderEvaluator evaluator) {
         try {
             dataCSV = new CSVFile(evaluator.csvPath.resolve("data.csv"));
-            dataCSV.setHeaderFields("ModelID", "InteractionID", "AlgorithmID", "AlgorithmIt", "Data");
-            dataCSV.flush();
+            dataCSV.setHeaderFields(
+                    "ModelID",
+                    "InteractionID",
+                    "AlgorithmID",
+                    "AlgorithmIt",
+                    "T",
+                    "fpNoise",
+                    "fnNoise",
+                    "NInteractionsFound",
+                    "FoundContainsFaulty",
+                    "FaultyContainsFound",
+                    "NFoundLiterals",
+                    "NSameLiterals",
+                    "NNonFoundLiterals",
+                    "NWrongLiteralsFound",
+                    "NVerifications",
+                    "TimeMS");
+
             algorithmCSV = new CSVFile(evaluator.csvPath.resolve("algorithms.csv"));
             algorithmCSV.setHeaderFields("AlgorithmID", "AlgorithmName", "T");
             algorithmCSV.flush();
