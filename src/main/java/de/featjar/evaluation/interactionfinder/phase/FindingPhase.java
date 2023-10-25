@@ -107,7 +107,12 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                 Path outPath = evaluator.genPath.resolve(modelName);
                 List<Path> interactionFiles;
                 try {
-                    interactionFiles = Files.list(outPath.resolve("interactions"))
+                    Path interactionDir = outPath.resolve("interactions");
+                    if (!Files.exists(interactionDir)) {
+                        FeatJAR.log().debug("No interactions found for %s", modelName);
+                        return;
+                    }
+                    interactionFiles = Files.list(interactionDir)
                             .filter(Files::isRegularFile)
                             .collect(Collectors.toList());
                 } catch (IOException e) {

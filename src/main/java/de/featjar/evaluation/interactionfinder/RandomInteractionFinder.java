@@ -38,6 +38,12 @@ public class RandomInteractionFinder extends IncInteractionFinder {
     private static final double limitFactor = 10.0 / Math.log(2);
 
     public List<BooleanAssignment> find(int tmax) {
+        if (failingConfs.isEmpty()) {
+            return null;
+        }
+        verifyCounter = 0;
+        lastMerge = null;
+
         List<int[]> result = findT(tmax);
         return isPotentialInteraction(result)
                 ? List.of((BooleanAssignment) IIntegerList.merge(
