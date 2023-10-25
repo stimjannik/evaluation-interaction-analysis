@@ -8,40 +8,40 @@ busybox-1_23_1;busybox-1.23.1;commit;syntax error;networking/nc.c;ENABLE_NC && !
 busybox-1_23_1;busybox-1.23.1;commit;syntax error;networking/httpd.c;ENABLE_FEATURE_HTTPD_USE_SENDFILE && ENABLE_FEATURE_HTTPD_BASIC_AUTH && !ENABLE_FEATURE_HTTPD_AUTH_MD5 && !PIPE_BUF;4;1
 busybox-1_23_1;busybox-1.23.1;commit;syntax error;shell/hush.c;ENABLE_HUSH_CASE && ENABLE_FEATURE_EDITING_SAVE_ON_EXIT && ENABLE_HUSH_INTERACTIVE && !ENABLE_FEATURE_EDITING;4;1
 busybox-1_23_1;busybox-1.23.1;commit;syntax error;networking/ftpd.c;CONFIG_FTPD && ENABLE_FEATURE_FTP_AUTHENTICATION && !CONFIG_SU && !CONFIG_VLOCK && !CONFIG_LOGIN && !CONFIG_SULOGIN;6;1
-linux_x86-3-18;linux-3.18.5;commit;e67bc51e574ffe3c4bc1e09cab7658b1e780b4ce;include/linux/kernel.h;!CONFIG_TRACING;1;1
-linux_x86-3-18;linux-3.18.5;commit;0988c4c7fb5881377ec20a6452f739a722e97c6b;include/linux/if_vlan.h;!CONFIG_VLAN_8021Q;1;1
-linux_x86-3-18;linux-3.18.5;commit;60e233a56609fd963c59e99bd75c663d63fa91b6;drivers/base/core.c;!HOTPLUG;1;1
-linux_x86-3-18;linux-3.18.5;commit;30e053248da178cf6154bb7e950dc8713567e3fa;fs/reiserfs/namei.c;!SECURITY;1;1
-linux_x86-3-18;linux-3.18.5;commit;809e660f438fc5a69bf57630a85bcd8112263f37;arch/arm/mm/fault.c;CONFIG_ARM_LPAE;1;1
-linux_x86-3-18;linux-3.18.5;commit;218ad12f42e0b6207105cde8fd13017d1ed449e4;include/net/inet_hashtables.h;CONFIG_NUMA;1;1
-linux_x86-3-18;linux-3.18.5;commit;8c8296223f3abb142be8fc31711b18a704c0e7d8;fs/proc/task_mmu.c;CONFIG_PROC_PAGE_MONITOR;1;1
-linux_x86-3-18;linux-3.18.5;commit;d7e9711760a17aef3a94fc6dff4759fa5961de25;fs/quota/dquot.c;CONFIG_QUOTA_DEBUG;1;1
-linux_x86-3-18;linux-3.18.5;commit;208d89843b7b03978d8e748b8b991c1be81c4f43;net/ipv4/udp.c;HIGHMEM;1;1
-linux_x86-3-18;linux-3.18.5;commit;bc8cec0dff072f1a45ce7f6b2c5234bb3411ac51;fs/jffs2/super.c;JFFS2_FS_WBUF_VERIFY;1;1
-linux_x86-3-18;linux-3.18.5;commit;51fd36f3fad8447c487137ae26b9d0b3ce77bb25;kernel/time/tick-sched.c;!A64BIT && !KTIME_SCALAR;2;1
-linux_x86-3-18;linux-3.18.5;commit;63878acfafbc7a6ff90a2f8b3e31f0889bc61af6;arch/arm/mach-omap2/board-omap3pandora.c;ARCH_OPAM3 && !PM;2;1
-linux_x86-3-18;linux-3.18.5;commit;f48ec1d7885281a9c6cd7779d61f321d1b1fd741;block/cfq-iosched.c;CONFIG_CFQ_GROUP_IOSCHED && !CONFIG_DEBUG_BLK_CGROUP;2;1
-linux_x86-3-18;linux-3.18.5;commit;6e2b75740bed35df98b8113300579e13ed2ce848;kernel/module.c;CONFIG_MODULE_UNLOAD && CONFIG_SMP;2;1
-linux_x86-3-18;linux-3.18.5;commit;36855dcfc980f247909b8f63776664c6ccb6f183;arch/blackfin/mach-common/pm.c;CONFIG_PM_BFIN_SLEEP_DEEPER && CONFIG_BF60x;2;1
-linux_x86-3-18;linux-3.18.5;commit;657e9649e745b06675aa5063c84430986cdc3afa;net/ipv4/tcp_minisocks.c;CONFIG_TCP_MD5SIG && PREEMPT;2;1
-linux_x86-3-18;linux-3.18.5;commit;7acf6cd80b201f77371a5374a786144153629be8;drivers/tty/pty.c;CONFIG_UNIX98_PTYS && DEVPTS_MULTIPLE_INSTANCES;2;1
-linux_x86-3-18;linux-3.18.5;commit;f3d83e2415445e5b157bef404d38674e9e8de169;init/main.c;CONFIG_X86 && ACPI_WMI;2;1
-linux_x86-3-18;linux-3.18.5;commit;472a474c6630efd195d3738339fd1bdc8aa3b1aa;arch/x86/kernel/smpboot.c;CONFIG_X86_32 && CONFIG_X86_BIGSMP;2;1
-linux_x86-3-18;linux-3.18.5;commit;1f758a4341ac83289a549e6ba2d29a08cf639717;drivers/net/arm/ep93xx_eth.c;EP93XX_ETH && !ZONE_DMA;2;1
-linux_x86-3-18;linux-3.18.5;commit;0dc77b6dabec8fd298392018cc0de5214af2dc43;drivers/extcon/extcon-class.c;EXTCON && SYSFS && CONFIG_ANDROID;3;1
-linux_x86-3-18;linux-3.18.5;commit;d549f55f2e132e3d1f1288ce4231f45f12988bbf;drivers/infiniband/hw/ocrdma/ocrdma_main.c;IS_ENABLEDCONFIG_IPV6 && !IS_ENABLEDCONFIG_VLAN_8021Q;2;1
-linux_x86-3-18;linux-3.18.5;commit;6515e48932c8bf04227f9dd638c8ac634f89ba24;arch/arm/mach-omap2/board-generic.c;MACH_OMAP_H4 && !ARCH_OMAP2420;2;1
-linux_x86-3-18;linux-3.18.5;commit;e39363a9def53dd4086be107dc8b3ebca09f045d;net/core/netpoll.c;NETPOLL && !IS_ENABLEDCONFIG_IPV6;2;1
-linux_x86-3-18;linux-3.18.5;commit;c708c57e247775928b9a6bce7b4d8d14883bf39b;arch/s390/crypto/prng.c;S390 && S390_PRNG;2;1
-linux_x86-3-18;linux-3.18.5;commit;d530db0db90378b5674cb78d9c0cfcc83f851a5e;drivers/net/3c59x.c;VORTEX_DEBUG && !CONFIG_PCI;2;1
-linux_x86-3-18;linux-3.18.5;commit;76baeebf7df493703eeb4428eac015bdb7fabda6;arch/x86/pci/common.c;__i386__ && CONFIG_NUMA && CONFIG_PCI_BIOS;3;1
-linux_x86-3-18;linux-3.18.5;commit;91ea8207168793b365322be3c90a4ee9e8b03ed4;arch/parisc/mm/init.c;CONFIG_PARISC_PAGE_SIZE_4KB && CONFIG_DISCONTIGMEM && PROC_PAGE_MONITOR;3;1
-linux_x86-3-18;linux-3.18.5;commit;1c17e4d4437d8045a596d9f06c1558dc09e2b372;kernel/rcutree_plugin.h;CONFIG_TREE_PREEMPT_RCU && CONFIG_RCU_CPU_STALL_INFO && !CONFIG_RCU_FAST_NO_HZ;3;1
-linux_x86-3-18;linux-3.18.5;commit;f7ab9b407b3bc83161c2aa74c992ba4782e87c9c;drivers/gpu/drm/i915/i915_dma.c;DRM_I915 && SHMEM && !TMPFS;3;1
-linux_x86-3-18;linux-3.18.5;commit;ee3f34e857238a4552c68d860348893d7728bcab;net/sctp/ipv6.c;IP_SCTP && IPV6 && SCTP_DBG_MSG;3;1
-linux_x86-3-18;linux-3.18.5;commit;6252547b8a7acced581b649af4ebf6d65f63a34b;drivers/base/dd.c;I2C && TWL4030_CORE && IRQ_DOMAIN && !OF_IRQ;4;1
-linux_x86-3-18;linux-3.18.5;commit;221ac329e93fe2a676346af2e98e311251648f69;arch/powerpc/kernel/kprobes.c;!CONFIG_PPC64 && KPROBES && !KGDB && !XMON && !BDI_SWITCH;5;1
-linux_x86-3-18;linux-3.18.5;commit;eb91f1d0a531289e18f5587dc197d12a251c66a3;init/main.c;CONFIG_DEBUG_SLAB && CONFIG_LOCKDEP && TRACE_IRQFLAGS && PROVE_LOCKING && CONFIG_NUMA;5;1
-linux_x86-3-18;linux-3.18.5;commit;0f8f8094d28eb53368ac09186ea6b3a324cc7d44;mm/slab.c;CONFIG_LOCKDEP && CONFIG_DEBUG_SLAB && !CONFIG_DEBUG_SLAB_LEAK && PPC_256K_PAGES && FORCE_MAX_ZONEORDER;5;1
-linux_x86-3-14;linux-3.18.5;release;linux-3.14.6;kernel/sched/proc.c;CONFIG_NO_HZ_COMMON;1;1
-linux_x86-3-14;linux-3.18.5;release;linux-3.14.6;kernel/sched/rt.c;CONFIG_SCHED_DEBUG;1;1
+linux_x86-3.18;linux-3.18.5;commit;e67bc51e574ffe3c4bc1e09cab7658b1e780b4ce;include/linux/kernel.h;!CONFIG_TRACING;1;1
+linux_x86-3.18;linux-3.18.5;commit;0988c4c7fb5881377ec20a6452f739a722e97c6b;include/linux/if_vlan.h;!CONFIG_VLAN_8021Q;1;1
+linux_x86-3.18;linux-3.18.5;commit;60e233a56609fd963c59e99bd75c663d63fa91b6;drivers/base/core.c;!HOTPLUG;1;1
+linux_x86-3.18;linux-3.18.5;commit;30e053248da178cf6154bb7e950dc8713567e3fa;fs/reiserfs/namei.c;!SECURITY;1;1
+linux_x86-3.18;linux-3.18.5;commit;809e660f438fc5a69bf57630a85bcd8112263f37;arch/arm/mm/fault.c;CONFIG_ARM_LPAE;1;1
+linux_x86-3.18;linux-3.18.5;commit;218ad12f42e0b6207105cde8fd13017d1ed449e4;include/net/inet_hashtables.h;CONFIG_NUMA;1;1
+linux_x86-3.18;linux-3.18.5;commit;8c8296223f3abb142be8fc31711b18a704c0e7d8;fs/proc/task_mmu.c;CONFIG_PROC_PAGE_MONITOR;1;1
+linux_x86-3.18;linux-3.18.5;commit;d7e9711760a17aef3a94fc6dff4759fa5961de25;fs/quota/dquot.c;CONFIG_QUOTA_DEBUG;1;1
+linux_x86-3.18;linux-3.18.5;commit;208d89843b7b03978d8e748b8b991c1be81c4f43;net/ipv4/udp.c;HIGHMEM;1;1
+linux_x86-3.18;linux-3.18.5;commit;bc8cec0dff072f1a45ce7f6b2c5234bb3411ac51;fs/jffs2/super.c;JFFS2_FS_WBUF_VERIFY;1;1
+linux_x86-3.18;linux-3.18.5;commit;51fd36f3fad8447c487137ae26b9d0b3ce77bb25;kernel/time/tick-sched.c;!A64BIT && !KTIME_SCALAR;2;1
+linux_x86-3.18;linux-3.18.5;commit;63878acfafbc7a6ff90a2f8b3e31f0889bc61af6;arch/arm/mach-omap2/board-omap3pandora.c;ARCH_OPAM3 && !PM;2;1
+linux_x86-3.18;linux-3.18.5;commit;f48ec1d7885281a9c6cd7779d61f321d1b1fd741;block/cfq-iosched.c;CONFIG_CFQ_GROUP_IOSCHED && !CONFIG_DEBUG_BLK_CGROUP;2;1
+linux_x86-3.18;linux-3.18.5;commit;6e2b75740bed35df98b8113300579e13ed2ce848;kernel/module.c;CONFIG_MODULE_UNLOAD && CONFIG_SMP;2;1
+linux_x86-3.18;linux-3.18.5;commit;36855dcfc980f247909b8f63776664c6ccb6f183;arch/blackfin/mach-common/pm.c;CONFIG_PM_BFIN_SLEEP_DEEPER && CONFIG_BF60x;2;1
+linux_x86-3.18;linux-3.18.5;commit;657e9649e745b06675aa5063c84430986cdc3afa;net/ipv4/tcp_minisocks.c;CONFIG_TCP_MD5SIG && PREEMPT;2;1
+linux_x86-3.18;linux-3.18.5;commit;7acf6cd80b201f77371a5374a786144153629be8;drivers/tty/pty.c;CONFIG_UNIX98_PTYS && DEVPTS_MULTIPLE_INSTANCES;2;1
+linux_x86-3.18;linux-3.18.5;commit;f3d83e2415445e5b157bef404d38674e9e8de169;init/main.c;CONFIG_X86 && ACPI_WMI;2;1
+linux_x86-3.18;linux-3.18.5;commit;472a474c6630efd195d3738339fd1bdc8aa3b1aa;arch/x86/kernel/smpboot.c;CONFIG_X86_32 && CONFIG_X86_BIGSMP;2;1
+linux_x86-3.18;linux-3.18.5;commit;1f758a4341ac83289a549e6ba2d29a08cf639717;drivers/net/arm/ep93xx_eth.c;EP93XX_ETH && !ZONE_DMA;2;1
+linux_x86-3.18;linux-3.18.5;commit;0dc77b6dabec8fd298392018cc0de5214af2dc43;drivers/extcon/extcon-class.c;EXTCON && SYSFS && CONFIG_ANDROID;3;1
+linux_x86-3.18;linux-3.18.5;commit;d549f55f2e132e3d1f1288ce4231f45f12988bbf;drivers/infiniband/hw/ocrdma/ocrdma_main.c;IS_ENABLEDCONFIG_IPV6 && !IS_ENABLEDCONFIG_VLAN_8021Q;2;1
+linux_x86-3.18;linux-3.18.5;commit;6515e48932c8bf04227f9dd638c8ac634f89ba24;arch/arm/mach-omap2/board-generic.c;MACH_OMAP_H4 && !ARCH_OMAP2420;2;1
+linux_x86-3.18;linux-3.18.5;commit;e39363a9def53dd4086be107dc8b3ebca09f045d;net/core/netpoll.c;NETPOLL && !IS_ENABLEDCONFIG_IPV6;2;1
+linux_x86-3.18;linux-3.18.5;commit;c708c57e247775928b9a6bce7b4d8d14883bf39b;arch/s390/crypto/prng.c;S390 && S390_PRNG;2;1
+linux_x86-3.18;linux-3.18.5;commit;d530db0db90378b5674cb78d9c0cfcc83f851a5e;drivers/net/3c59x.c;VORTEX_DEBUG && !CONFIG_PCI;2;1
+linux_x86-3.18;linux-3.18.5;commit;76baeebf7df493703eeb4428eac015bdb7fabda6;arch/x86/pci/common.c;__i386__ && CONFIG_NUMA && CONFIG_PCI_BIOS;3;1
+linux_x86-3.18;linux-3.18.5;commit;91ea8207168793b365322be3c90a4ee9e8b03ed4;arch/parisc/mm/init.c;CONFIG_PARISC_PAGE_SIZE_4KB && CONFIG_DISCONTIGMEM && PROC_PAGE_MONITOR;3;1
+linux_x86-3.18;linux-3.18.5;commit;1c17e4d4437d8045a596d9f06c1558dc09e2b372;kernel/rcutree_plugin.h;CONFIG_TREE_PREEMPT_RCU && CONFIG_RCU_CPU_STALL_INFO && !CONFIG_RCU_FAST_NO_HZ;3;1
+linux_x86-3.18;linux-3.18.5;commit;f7ab9b407b3bc83161c2aa74c992ba4782e87c9c;drivers/gpu/drm/i915/i915_dma.c;DRM_I915 && SHMEM && !TMPFS;3;1
+linux_x86-3.18;linux-3.18.5;commit;ee3f34e857238a4552c68d860348893d7728bcab;net/sctp/ipv6.c;IP_SCTP && IPV6 && SCTP_DBG_MSG;3;1
+linux_x86-3.18;linux-3.18.5;commit;6252547b8a7acced581b649af4ebf6d65f63a34b;drivers/base/dd.c;I2C && TWL4030_CORE && IRQ_DOMAIN && !OF_IRQ;4;1
+linux_x86-3.18;linux-3.18.5;commit;221ac329e93fe2a676346af2e98e311251648f69;arch/powerpc/kernel/kprobes.c;!CONFIG_PPC64 && KPROBES && !KGDB && !XMON && !BDI_SWITCH;5;1
+linux_x86-3.18;linux-3.18.5;commit;eb91f1d0a531289e18f5587dc197d12a251c66a3;init/main.c;CONFIG_DEBUG_SLAB && CONFIG_LOCKDEP && TRACE_IRQFLAGS && PROVE_LOCKING && CONFIG_NUMA;5;1
+linux_x86-3.18;linux-3.18.5;commit;0f8f8094d28eb53368ac09186ea6b3a324cc7d44;mm/slab.c;CONFIG_LOCKDEP && CONFIG_DEBUG_SLAB && !CONFIG_DEBUG_SLAB_LEAK && PPC_256K_PAGES && FORCE_MAX_ZONEORDER;5;1
+linux_x86-3.14;linux-3.18.5;release;linux-3.14.6;kernel/sched/proc.c;CONFIG_NO_HZ_COMMON;1;1
+linux_x86-3.14;linux-3.18.5;release;linux-3.14.6;kernel/sched/rt.c;CONFIG_SCHED_DEBUG;1;1
