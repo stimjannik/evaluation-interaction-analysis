@@ -32,6 +32,7 @@ import de.featjar.formula.analysis.bool.BooleanClause;
 import de.featjar.formula.analysis.combinations.IncInteractionFinder;
 import de.featjar.formula.analysis.sat4j.RandomConfigurationUpdater;
 import de.featjar.formula.io.csv.BooleanAssignmentSpaceCSVFormat;
+import de.featjar.formula.io.dimacs.BooleanAssignmentSpaceDimacsFormat;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,20 +55,21 @@ public class InteractionFinderRunner {
             FeatJAR.initialize(configuration);
         }
 
-        BooleanAssignmentSpace model = load(args[0]);
-        BooleanAssignmentSpace sample = load(args[1]);
-        BooleanAssignmentSpace interaction = load(args[2]);
-        Path outputPath = Paths.get(args[3]);
+        BooleanAssignmentSpace model = loadDimacs(args[0]);
+        BooleanAssignmentSpace core = loadDimacs(args[1]);
+        BooleanAssignmentSpace sample = loadDimacs(args[2]);
+        BooleanAssignmentSpace interaction = loadDimacs(args[3]);
+        Path outputPath = Paths.get(args[4]);
 
-        IncInteractionFinder algorithm = parseAlgorithm(args[4]);
-        int t = Integer.parseInt(args[5]);
-        Long seed = Long.parseLong(args[6]);
+        IncInteractionFinder algorithm = parseAlgorithm(args[5]);
+        int t = Integer.parseInt(args[6]);
+        Long seed = Long.parseLong(args[7]);
 
-        Double fpNoise = Double.parseDouble(args[7]);
-        Double fnNoise = Double.parseDouble(args[8]);
+        Double fpNoise = Double.parseDouble(args[8]);
+        Double fnNoise = Double.parseDouble(args[9]);
 
         algorithm.reset();
-        algorithm.setCore(model.getGroups().get(1).get(0).toClause());
+        algorithm.setCore(core.getGroups().get(0).get(0).toClause());
         algorithm.setVerifier(
                 new ConfigurationOracle(interaction.toClauseList(0).getAll(), fpNoise, fnNoise));
         algorithm.setUpdater(new RandomConfigurationUpdater(model.toClauseList(), seed));
@@ -100,8 +102,16 @@ public class InteractionFinderRunner {
         Files.writeString(outputPath, sb.toString());
     }
 
-    private static BooleanAssignmentSpace load(String path) {
-        return IO.load(Paths.get(path), new BooleanAssignmentSpaceCSVFormat()).orElseThrow();
+    private static BooleanAssignmentSpace loadDimacs(String path) {
+        if (path.endsWith(".csv")) {
+            return IO.load(Paths.get(path), new BooleanAssignmentSpaceCSVFormat())
+                    .orElseThrow();
+        } else if (path.endsWith(".dimacs")) {
+            return IO.load(Paths.get(path), new BooleanAssignmentSpaceDimacsFormat())
+                    .orElseThrow();
+        } else {
+            throw new RuntimeException("Unkown file format");
+        }
     }
 
     public static BooleanClause parseLiteralList(String arg) {

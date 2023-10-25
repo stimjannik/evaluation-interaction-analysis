@@ -40,6 +40,7 @@ import de.featjar.formula.analysis.bool.IBooleanRepresentation;
 import de.featjar.formula.analysis.sat4j.ComputeCoreDeadVariablesSAT4J;
 import de.featjar.formula.analysis.sat4j.ComputeSolutionSAT4J;
 import de.featjar.formula.io.csv.BooleanAssignmentSpaceCSVFormat;
+import de.featjar.formula.io.dimacs.BooleanAssignmentSpaceDimacsFormat;
 import de.featjar.formula.io.textual.ExpressionParser;
 import de.featjar.formula.io.textual.ExpressionParser.ErrorHandling;
 import de.featjar.formula.io.textual.Symbols;
@@ -85,8 +86,8 @@ public class ReadInteractionsPhase implements EvaluationPhase<InteractionFinderE
                     final String modelName = values[0];
                     modelID = evaluator.systemNames.indexOf(modelName);
                     Result<BooleanAssignmentSpace> load = IO.load(
-                            evaluator.outputPath.resolve(modelName).resolve("cnf.csv"),
-                            new BooleanAssignmentSpaceCSVFormat());
+                            evaluator.genPath.resolve(modelName).resolve("cnf.dimacs"),
+                            new BooleanAssignmentSpaceDimacsFormat());
                     if (load.isEmpty()) {
                         FeatJAR.log().problems(load.getProblems());
                         return;
@@ -124,7 +125,7 @@ public class ReadInteractionsPhase implements EvaluationPhase<InteractionFinderE
                         IO.save(
                                 new BooleanAssignmentSpace(variables, List.of(List.of(solution))),
                                 evaluator
-                                        .outputPath
+                                        .genPath
                                         .resolve(modelName)
                                         .resolve("samples")
                                         .resolve(String.format("sol_rs%d.csv", modelIteration)),
@@ -140,13 +141,21 @@ public class ReadInteractionsPhase implements EvaluationPhase<InteractionFinderE
                                     .compute());
                         }
                         IO.save(
-                                new BooleanAssignmentSpace(variables, List.of(pcDnf.getAll(), updatedInteractions)),
+                                new BooleanAssignmentSpace(variables, List.of(pcDnf.getAll())),
                                 evaluator
-                                        .outputPath
+                                        .genPath
                                         .resolve(modelName)
                                         .resolve("interactions")
-                                        .resolve(String.format("int_r%d_rs%d.csv", modelIteration, modelIteration)),
-                                new BooleanAssignmentSpaceCSVFormat());
+                                        .resolve(String.format("int_r%d_rs%d.dimacs", modelIteration, modelIteration)),
+                                new BooleanAssignmentSpaceDimacsFormat());
+                        IO.save(
+                                new BooleanAssignmentSpace(variables, List.of(updatedInteractions)),
+                                evaluator
+                                        .genPath
+                                        .resolve(modelName)
+                                        .resolve("interactions")
+                                        .resolve(String.format("uint_r%d_rs%d.dimacs", modelIteration, modelIteration)),
+                                new BooleanAssignmentSpaceDimacsFormat());
                         evaluator.writeCSV(interactionsCSV, w -> {
                             w.add(modelID);
                             w.add(modelIteration);

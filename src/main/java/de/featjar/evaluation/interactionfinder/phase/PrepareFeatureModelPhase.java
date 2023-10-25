@@ -31,18 +31,16 @@ import de.featjar.evaluation.util.ModelReader;
 import de.featjar.formula.analysis.VariableMap;
 import de.featjar.formula.analysis.bool.ABooleanAssignment;
 import de.featjar.formula.analysis.bool.BooleanAssignment;
-import de.featjar.formula.analysis.bool.BooleanAssignmentList;
 import de.featjar.formula.analysis.bool.BooleanAssignmentSpace;
 import de.featjar.formula.analysis.bool.BooleanClause;
 import de.featjar.formula.analysis.bool.BooleanClauseList;
 import de.featjar.formula.analysis.bool.IBooleanRepresentation;
-import de.featjar.formula.analysis.sat4j.ComputeAtomicSetsSAT4J;
+import de.featjar.formula.analysis.mig.ComputeCoreDead;
 import de.featjar.formula.io.FormulaFormats;
-import de.featjar.formula.io.csv.BooleanAssignmentSpaceCSVFormat;
+import de.featjar.formula.io.dimacs.BooleanAssignmentSpaceDimacsFormat;
 import de.featjar.formula.structure.formula.IFormula;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -67,42 +65,43 @@ public class PrepareFeatureModelPhase implements EvaluationPhase<InteractionFind
                     IBooleanRepresentation.toVariableMap(load.get()).compute();
             BooleanClauseList cnf =
                     IBooleanRepresentation.toBooleanClauseList(load.get()).compute();
-            BooleanAssignmentList atomic =
-                    Computations.of(cnf).map(ComputeAtomicSetsSAT4J::new).compute();
-
-            Iterator<BooleanAssignment> iterator = atomic.getAll().iterator();
-            BooleanAssignment core = iterator.next();
+            //            BooleanAssignmentList atomic =
+            //                    Computations.of(cnf).map(ComputeAtomicSetsSAT4J::new).compute();
+            //            Iterator<BooleanAssignment> iterator = atomic.getAll().iterator();
+            //            BooleanAssignment core = iterator.next();
+            BooleanAssignment core =
+                    Computations.of(cnf).map(ComputeCoreDead::new).compute();
 
             VariableMap atomicFreeVariables = new VariableMap(variables);
             List<int[]> atomicFreeClauseLiterals = new ArrayList<>();
             for (BooleanClause clause : cnf.getAll()) {
                 atomicFreeClauseLiterals.add(clause.copy());
             }
-            while (iterator.hasNext()) {
-                BooleanAssignment next = iterator.next();
-                if (next.size() > 1) {
-                    int[] atomicLiterals = next.copy();
-                    int substitute = atomicLiterals[0];
-                    for (int i = 1; i < atomicLiterals.length; i++) {
-                        atomicFreeVariables.remove(atomicLiterals[i]);
-                    }
-                    for (int[] clauseLiterals : atomicFreeClauseLiterals) {
-                        for (int i = 0; i < clauseLiterals.length; i++) {
-                            int clauseLiteral = clauseLiterals[i];
-                            for (int j = 1; j < atomicLiterals.length; j++) {
-                                int atomicLiteral = atomicLiterals[j];
-                                if (clauseLiteral == atomicLiteral) {
-                                    clauseLiterals[i] = substitute;
-                                    break;
-                                } else if (clauseLiteral == -atomicLiteral) {
-                                    clauseLiterals[i] = -substitute;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            //            while (iterator.hasNext()) {
+            //                BooleanAssignment next = iterator.next();
+            //                if (next.size() > 1) {
+            //                    int[] atomicLiterals = next.copy();
+            //                    int substitute = atomicLiterals[0];
+            //                    for (int i = 1; i < atomicLiterals.length; i++) {
+            //                        atomicFreeVariables.remove(atomicLiterals[i]);
+            //                    }
+            //                    for (int[] clauseLiterals : atomicFreeClauseLiterals) {
+            //                        for (int i = 0; i < clauseLiterals.length; i++) {
+            //                            int clauseLiteral = clauseLiterals[i];
+            //                            for (int j = 1; j < atomicLiterals.length; j++) {
+            //                                int atomicLiteral = atomicLiterals[j];
+            //                                if (clauseLiteral == atomicLiteral) {
+            //                                    clauseLiterals[i] = substitute;
+            //                                    break;
+            //                                } else if (clauseLiteral == -atomicLiteral) {
+            //                                    clauseLiterals[i] = -substitute;
+            //                                    break;
+            //                                }
+            //                            }
+            //                        }
+            //                    }
+            //                }
+            //            }
             atomicFreeVariables.normalize();
             core = new BooleanAssignment(
                     core.adapt(variables, atomicFreeVariables).orElseThrow());
@@ -113,13 +112,15 @@ public class PrepareFeatureModelPhase implements EvaluationPhase<InteractionFind
                     .collect(Collectors.toList());
 
             // save fm and core
-            BooleanAssignmentSpace sp =
-                    new BooleanAssignmentSpace(atomicFreeVariables, List.of(atomicFreeClauses, List.of(core)));
             try {
                 IO.save(
-                        sp,
-                        evaluator.outputPath.resolve(modelName).resolve("cnf.csv"),
-                        new BooleanAssignmentSpaceCSVFormat());
+                        new BooleanAssignmentSpace(atomicFreeVariables, List.of(atomicFreeClauses)),
+                        evaluator.genPath.resolve(modelName).resolve("cnf.dimacs"),
+                        new BooleanAssignmentSpaceDimacsFormat());
+                IO.save(
+                        new BooleanAssignmentSpace(atomicFreeVariables, List.of(List.of(core))),
+                        evaluator.genPath.resolve(modelName).resolve("core.dimacs"),
+                        new BooleanAssignmentSpaceDimacsFormat());
                 evaluator.writeCSV(modelCSV, w -> {
                     w.add(modelID);
                     w.add(modelName);
@@ -138,7 +139,7 @@ public class PrepareFeatureModelPhase implements EvaluationPhase<InteractionFind
             modelCSV = new CSVFile(evaluator.csvPath.resolve("model.csv"));
             modelCSV.setHeaderFields("ModelID", "ModelName", "VariableCount", "ClauseCount");
             modelCSV.flush();
-            modelReader = new ModelReader<>(evaluator.resourcePath.resolve("models"), FormulaFormats.getInstance());
+            modelReader = new ModelReader<>(evaluator.modelPath, FormulaFormats.getInstance());
             evaluator.optionLoop(this, InteractionFinderEvaluator.systemsOption);
         } catch (IOException e) {
             FeatJAR.log().error(e);

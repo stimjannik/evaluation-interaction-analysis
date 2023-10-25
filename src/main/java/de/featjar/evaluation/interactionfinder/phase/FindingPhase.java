@@ -36,7 +36,7 @@ import de.featjar.formula.analysis.bool.BooleanAssignmentSpace;
 import de.featjar.formula.analysis.bool.BooleanClause;
 import de.featjar.formula.analysis.bool.BooleanClauseList;
 import de.featjar.formula.analysis.sat4j.ComputeCoreDeadVariablesSAT4J;
-import de.featjar.formula.io.csv.BooleanAssignmentSpaceCSVFormat;
+import de.featjar.formula.io.dimacs.BooleanAssignmentSpaceDimacsFormat;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -69,7 +69,7 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
     private double fpNoise, fnNoise;
     private String modelName, algorithmName, interactionID;
 
-    private static final Pattern compile = Pattern.compile("int_([a-z]+\\d+)_([a-z]+\\d+)[.]csv");
+    private static final Pattern compile = Pattern.compile("uint_([a-z]+\\d+)_([a-z]+\\d+)[.]dimacs");
 
     public void optionLoop(InteractionFinderEvaluator evaluator, int lastChanged) {
         switch (lastChanged) {
@@ -77,8 +77,8 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                 modelName = evaluator.cast(0);
                 modelID = evaluator.systemNames.indexOf(modelName);
                 Result<BooleanAssignmentSpace> load = IO.load(
-                        evaluator.outputPath.resolve(modelName).resolve("cnf.csv"),
-                        new BooleanAssignmentSpaceCSVFormat());
+                        evaluator.genPath.resolve(modelName).resolve("cnf.dimacs"),
+                        new BooleanAssignmentSpaceDimacsFormat());
                 if (load.isEmpty()) {
                     FeatJAR.log().problems(load.getProblems());
                 } else {
@@ -104,10 +104,10 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
             case 5:
                 algorithmIteration = evaluator.cast(5);
 
-                Path resolve = evaluator.outputPath.resolve(modelName);
+                Path outPath = evaluator.genPath.resolve(modelName);
                 List<Path> interactionFiles;
                 try {
-                    interactionFiles = Files.list(resolve.resolve("interactions"))
+                    interactionFiles = Files.list(outPath.resolve("interactions"))
                             .filter(Files::isRegularFile)
                             .collect(Collectors.toList());
                 } catch (IOException e) {
@@ -117,50 +117,69 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                 for (Path interactionFile : interactionFiles) {
                     Matcher matcher =
                             compile.matcher(interactionFile.getFileName().toString());
-                    matcher.matches();
-                    interactionID = matcher.group(1);
-                    String solSuffix = matcher.group(2);
-                    String samplePathString = resolve.resolve("samples")
-                            .resolve("sol_" + solSuffix + ".csv")
-                            .toString();
-                    String modelPathString = resolve.resolve("cnf.csv").toString();
-                    String outputPath = evaluator.tempPath.resolve("result.txt").toString();
+                    if (matcher.matches()) {
+                        interactionID = matcher.group(1);
+                        String solSuffix = matcher.group(2);
+                        String samplePathString = outPath.resolve("samples")
+                                .resolve("sol_" + solSuffix + ".csv")
+                                .toString();
+                        String modelPathString = outPath.resolve("cnf.dimacs").toString();
+                        String corePathString = outPath.resolve("core.dimacs").toString();
+                        String outputPath =
+                                evaluator.tempPath.resolve("result.txt").toString();
 
-                    BooleanAssignmentSpace interaction = IO.load(interactionFile, new BooleanAssignmentSpaceCSVFormat())
-                            .orElseThrow();
-                    faultyInteractionsUpdated = interaction.toClauseList(1).getAll();
+                        BooleanAssignmentSpace interaction = IO.load(
+                                        interactionFile, new BooleanAssignmentSpaceDimacsFormat())
+                                .orElseThrow();
+                        faultyInteractionsUpdated = interaction.toClauseList(0).getAll();
 
-                    extracted(evaluator, interactionFile, samplePathString, modelPathString, outputPath);
-                    if (foundInteractions != null) {
-                        foundInteractionsMerged = BooleanAssignment.merge(foundInteractions);
-                        foundInteractionsMergedAndUpdated = Computations.of(cnf)
-                                .map(ComputeCoreDeadVariablesSAT4J::new)
-                                .set(ComputeCoreDeadVariablesSAT4J.ASSUMED_ASSIGNMENT, foundInteractionsMerged)
-                                .compute();
-                    } else {
-                        foundInteractions = Collections.emptyList();
-                        foundInteractionsMerged = new BooleanAssignment();
-                        foundInteractionsMergedAndUpdated = new BooleanAssignment();
-                    }
+                        extracted(
+                                evaluator,
+                                interactionFile,
+                                samplePathString,
+                                modelPathString,
+                                corePathString,
+                                outputPath);
+                        if (foundInteractions != null) {
+                            foundInteractionsMerged = BooleanAssignment.merge(foundInteractions);
+                            foundInteractionsMergedAndUpdated = Computations.of(cnf)
+                                    .map(ComputeCoreDeadVariablesSAT4J::new)
+                                    .set(ComputeCoreDeadVariablesSAT4J.ASSUMED_ASSIGNMENT, foundInteractionsMerged)
+                                    .compute();
+                        } else {
+                            foundInteractions = Collections.emptyList();
+                            foundInteractionsMerged = new BooleanAssignment();
+                            foundInteractionsMergedAndUpdated = new BooleanAssignment();
+                        }
 
-                    try {
-                        IO.save(
-                                new BooleanAssignmentSpace(
-                                        variables,
-                                        List.of(
-                                                foundInteractions,
-                                                List.of(foundInteractionsMerged, foundInteractionsMergedAndUpdated))),
-                                evaluator
-                                        .outputPath
-                                        .resolve(modelName)
-                                        .resolve("found")
-                                        .resolve(String.format(
-                                                "int_found_%s_%d_%d_%s.csv",
-                                                algorithmName, t, algorithmIteration, interactionID)),
-                                new BooleanAssignmentSpaceCSVFormat());
-                        evaluator.writeCSV(dataCSV, this::writeRunData);
-                    } catch (IOException e) {
-                        FeatJAR.log().error(e);
+                        try {
+                            IO.save(
+                                    new BooleanAssignmentSpace(variables, List.of(foundInteractions)),
+                                    evaluator
+                                            .genPath
+                                            .resolve(modelName)
+                                            .resolve("found")
+                                            .resolve(String.format(
+                                                    "int_found_%s_%d_%d_%s.dimacs",
+                                                    algorithmName, t, algorithmIteration, interactionID)),
+                                    new BooleanAssignmentSpaceDimacsFormat());
+                            IO.save(
+                                    new BooleanAssignmentSpace(
+                                            variables,
+                                            List.of(List.of(
+                                                    foundInteractionsMerged, foundInteractionsMergedAndUpdated))),
+                                    evaluator
+                                            .genPath
+                                            .resolve(modelName)
+                                            .resolve("found")
+                                            .resolve(String.format(
+                                                    "uint_found_%s_%d_%d_%s.dimacs",
+                                                    algorithmName, t, algorithmIteration, interactionID)),
+                                    new BooleanAssignmentSpaceDimacsFormat());
+                            evaluator.writeCSV(dataCSV, this::writeRunData);
+                        } catch (IOException e) {
+                            FeatJAR.log().error(e);
+                        }
                     }
                 }
             default:
@@ -172,6 +191,7 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
             Path interactionFile,
             String samplePathString,
             String modelPathString,
+            String corePathString,
             String outputPath) {
         Process process;
         try {
@@ -183,8 +203,14 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                             "build/libs/evaluation-interaction-analysis-0.1.0-SNAPSHOT-all.jar", //
                             "de.featjar.evaluation.interactionfinder.InteractionFinderRunner", //
                             modelPathString, // + core
+                            corePathString, // + core
                             samplePathString, //
-                            interactionFile.toString(), //
+                            interactionFile
+                                    .resolveSibling(interactionFile
+                                            .getFileName()
+                                            .toString()
+                                            .substring(1))
+                                    .toString(), //
                             outputPath, //
                             algorithmName,
                             String.valueOf(t), //
@@ -228,44 +254,6 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
             process.waitFor();
         } catch (Exception e) {
             FeatJAR.log().error(e);
-        }
-    }
-
-    private void extracted2(
-            InteractionFinderEvaluator evaluator,
-            Path interactionFile,
-            String samplePathString,
-            String modelPathString,
-            String outputPath) {
-
-        try {
-            InteractionFinderRunner.main(new String[] {
-                modelPathString, // + core
-                samplePathString, //
-                interactionFile.toString(), //
-                outputPath, //
-                algorithmName,
-                String.valueOf(t), //
-                String.valueOf(evaluator.getOption(Evaluator.randomSeed) + algorithmIteration), // +???
-                String.valueOf(fpNoise), //
-                String.valueOf(fnNoise)
-            });
-
-            String[] results = Files.lines(Path.of(outputPath)).toArray(String[]::new);
-            elapsedTimeInMS = Long.parseLong(results[0]);
-            verificationCounter = Integer.parseInt(results[1]);
-
-            if ("null".equals(results[2])) {
-                foundInteractions = null;
-            } else {
-                foundInteractions = new ArrayList<>(results.length - 2);
-                for (int i = 2; i < results.length; i++) {
-                    foundInteractions.add(InteractionFinderRunner.parseLiteralList(results[i]));
-                }
-            }
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
         }
     }
 
