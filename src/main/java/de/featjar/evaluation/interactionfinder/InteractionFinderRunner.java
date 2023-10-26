@@ -51,7 +51,7 @@ public class InteractionFinderRunner {
         if (!FeatJAR.isInitialized()) {
             final Configuration configuration = new Configuration();
             configuration.logConfig.logAtMost(Log.Verbosity.ERROR);
-            configuration.cacheConfig.setCachePolicy(Cache.CachePolicy.CACHE_TOP_LEVEL);
+            configuration.cacheConfig.setCachePolicy(Cache.CachePolicy.CACHE_NONE);
             FeatJAR.initialize(configuration);
         }
 
