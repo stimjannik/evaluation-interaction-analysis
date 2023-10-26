@@ -8,3 +8,6 @@ config*/
 results/
 build/
 data/
+/error.log
+/misc/
+/out.log
