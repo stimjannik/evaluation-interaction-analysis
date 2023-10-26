@@ -45,6 +45,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -227,7 +228,10 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
             BufferedReader prcErr = new BufferedReader(new InputStreamReader(process.getErrorStream()));
 
             final Path output = Path.of(outputPath);
-            int exitCode = process.waitFor();
+            Result<Long> result = evaluator.optionParser.get(Evaluator.timeout);
+            int exitCode = result.isPresent()
+                    ? (process.waitFor(result.get(), TimeUnit.SECONDS) ? process.exitValue() : -1)
+                    : process.waitFor();
             if (exitCode == 0 && Files.exists(output)) {
                 String[] results = Files.lines(output).toArray(String[]::new);
                 elapsedTimeInMS = Long.parseLong(results[0]);
