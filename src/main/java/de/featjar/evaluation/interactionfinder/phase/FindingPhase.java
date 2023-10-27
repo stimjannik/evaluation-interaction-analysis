@@ -91,17 +91,22 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                 fpNoise = evaluator.cast(1);
             case 2:
                 fnNoise = evaluator.cast(2);
+                if (algorithmID > 0) {
+                    algorithmCSV = null;
+                }
                 algorithmID = 0;
             case 3:
                 algorithmName = evaluator.cast(3);
             case 4:
                 t = evaluator.cast(4);
-                evaluator.writeCSV(algorithmCSV, w -> {
-                    w.add(algorithmID);
-                    w.add(evaluator.<String>cast(0));
-                    w.add(evaluator.<String>cast(1));
-                });
                 algorithmID++;
+                if (algorithmCSV != null) {
+                    evaluator.writeCSV(algorithmCSV, w -> {
+                        w.add(algorithmID);
+                        w.add(algorithmName);
+                        w.add(t);
+                    });
+                }
             case 5:
                 algorithmIteration = evaluator.cast(5);
 
