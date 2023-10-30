@@ -20,7 +20,7 @@
  */
 package de.featjar.evaluation.interactionfinder;
 
-import de.featjar.base.data.IIntegerList;
+import de.featjar.base.data.IntegerList;
 import de.featjar.formula.analysis.bool.BooleanAssignment;
 import de.featjar.formula.analysis.bool.BooleanSolution;
 import de.featjar.formula.analysis.combinations.IncInteractionFinder;
@@ -46,9 +46,8 @@ public class RandomInteractionFinder extends IncInteractionFinder {
 
         List<int[]> result = findT(tmax);
         return isPotentialInteraction(result)
-                ? List.of((BooleanAssignment) IIntegerList.merge(
-                        result.stream().map(BooleanAssignment::new).collect(Collectors.toList()),
-                        BooleanAssignment::new))
+                ? List.of(new BooleanAssignment(
+                        IntegerList.mergeInt(result.stream().collect(Collectors.toList()))))
                 : null;
     }
 

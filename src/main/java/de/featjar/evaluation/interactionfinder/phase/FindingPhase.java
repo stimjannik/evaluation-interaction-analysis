@@ -22,6 +22,7 @@ package de.featjar.evaluation.interactionfinder.phase;
 
 import de.featjar.base.FeatJAR;
 import de.featjar.base.computation.Computations;
+import de.featjar.base.data.IntegerList;
 import de.featjar.base.data.Result;
 import de.featjar.base.io.IO;
 import de.featjar.base.io.csv.CSVFile;
@@ -144,7 +145,7 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                                 .orElseThrow();
                         faultyInteractionsUpdated = interaction.toClauseList(0).getAll();
 
-                        extracted(
+                        startProcess(
                                 evaluator,
                                 interactionFile,
                                 samplePathString,
@@ -152,7 +153,7 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                                 corePathString,
                                 outputPath);
                         if (foundInteractions != null) {
-                            foundInteractionsMerged = BooleanAssignment.merge(foundInteractions);
+                            foundInteractionsMerged = new BooleanAssignment(IntegerList.merge(foundInteractions));
                             foundInteractionsMergedAndUpdated = Computations.of(cnf)
                                     .map(ComputeCoreDeadVariablesSAT4J::new)
                                     .set(ComputeCoreDeadVariablesSAT4J.ASSUMED_ASSIGNMENT, foundInteractionsMerged)
@@ -197,14 +198,18 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
         }
     }
 
-    private void extracted(
+    private void startProcess(
             InteractionFinderEvaluator evaluator,
             Path interactionFile,
             String samplePathString,
             String modelPathString,
             String corePathString,
             String outputPath) {
-        Process process;
+        final Path output = Path.of(outputPath);
+        Result<Long> timeout = evaluator.optionParser.get(Evaluator.timeout);
+
+        Process process = null;
+        BufferedReader prcErr = null;
         try {
             process = new ProcessBuilder(
                             "java", //
@@ -230,12 +235,10 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                             String.valueOf(fnNoise)) //
                     .start();
 
-            BufferedReader prcErr = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+            prcErr = new BufferedReader(new InputStreamReader(process.getErrorStream()));
 
-            final Path output = Path.of(outputPath);
-            Result<Long> result = evaluator.optionParser.get(Evaluator.timeout);
-            int exitCode = result.isPresent()
-                    ? (process.waitFor(result.get(), TimeUnit.SECONDS) ? process.exitValue() : -1)
+            int exitCode = timeout.isPresent()
+                    ? (process.waitFor(timeout.get(), TimeUnit.SECONDS) ? process.exitValue() : -1)
                     : process.waitFor();
             if (exitCode == 0 && Files.exists(output)) {
                 String[] results = Files.lines(output).toArray(String[]::new);
@@ -256,18 +259,29 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                 foundInteractions = null;
             }
             if (prcErr.ready()) {
-                String split = prcErr.lines().reduce("", (s1, s2) -> s1 + s2 + "\n");
-                FeatJAR.log().error(split);
+                FeatJAR.log().error(prcErr.lines().reduce("", (s1, s2) -> s1 + s2 + "\n"));
             }
+        } catch (Exception e) {
+            elapsedTimeInMS = -1;
+            verificationCounter = -1;
+            foundInteractions = null;
+            FeatJAR.log().error(e);
+        } finally {
             try {
-                prcErr.close();
+                if (prcErr != null) {
+                    prcErr.close();
+                }
             } catch (IOException e) {
                 FeatJAR.log().error(e);
             }
-            process.destroyForcibly();
-            process.waitFor();
-        } catch (Exception e) {
-            FeatJAR.log().error(e);
+            if (process != null) {
+                process.destroyForcibly();
+                try {
+                    process.waitFor();
+                } catch (InterruptedException e) {
+                    FeatJAR.log().error(e);
+                }
+            }
         }
     }
 
