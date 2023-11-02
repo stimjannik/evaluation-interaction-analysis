@@ -47,45 +47,94 @@ import java.util.List;
  */
 public class InteractionFinderRunner {
 
-    public static void main(String[] args) throws IOException {
-        if (!FeatJAR.isInitialized()) {
-            final Configuration configuration = new Configuration();
-            configuration.logConfig.logAtMost(Log.Verbosity.ERROR);
-            configuration.cacheConfig.setCachePolicy(Cache.CachePolicy.CACHE_NONE);
-            FeatJAR.initialize(configuration);
+    private static class FinderThread extends Thread {
+
+        private List<BooleanAssignment> foundInteractions;
+        private long elapsedTimeInMS = -1;
+
+        private IncInteractionFinder algorithm;
+        private int t;
+
+        private boolean finished;
+
+        @Override
+        public void run() {
+            long startTime = System.nanoTime();
+            foundInteractions = algorithm.find(t);
+            long endTime = System.nanoTime();
+            elapsedTimeInMS = (endTime - startTime) / 1_000_000;
+            synchronized (this) {
+                finished = true;
+            }
         }
 
-        BooleanAssignmentSpace model = loadDimacs(args[0]);
-        BooleanAssignmentSpace core = loadDimacs(args[1]);
-        BooleanAssignmentSpace sample = loadDimacs(args[2]);
-        BooleanAssignmentSpace interaction = loadDimacs(args[3]);
-        Path outputPath = Paths.get(args[4]);
+        public boolean isFinished() {
+            synchronized (this) {
+                return finished;
+            }
+        }
+    }
 
-        IncInteractionFinder algorithm = parseAlgorithm(args[5]);
-        int t = Integer.parseInt(args[6]);
-        Long seed = Long.parseLong(args[7]);
+    public static void main(String[] args) throws IOException {
+        try {
+            if (!FeatJAR.isInitialized()) {
+                final Configuration configuration = new Configuration();
+                configuration.logConfig.logAtMost(Log.Verbosity.ERROR);
+                configuration.cacheConfig.setCachePolicy(Cache.CachePolicy.CACHE_NONE);
+                FeatJAR.initialize(configuration);
+            }
 
-        Double fpNoise = Double.parseDouble(args[8]);
-        Double fnNoise = Double.parseDouble(args[9]);
+            FinderThread thread = new FinderThread();
 
-        algorithm.reset();
-        algorithm.setCore(core.getGroups().get(0).get(0).toClause());
-        algorithm.setVerifier(
-                new ConfigurationOracle(interaction.toClauseList(0).getAll(), fpNoise, fnNoise));
-        algorithm.setUpdater(new RandomConfigurationUpdater(model.toClauseList(), seed));
-        List<? extends ABooleanAssignment> list = sample.getGroups().get(0);
-        algorithm.addConfigurations(list);
+            BooleanAssignmentSpace model = loadDimacs(args[0]);
+            BooleanAssignmentSpace core = loadDimacs(args[1]);
+            BooleanAssignmentSpace sample = loadDimacs(args[2]);
+            BooleanAssignmentSpace interaction = loadDimacs(args[3]);
+            Path outputPath = Paths.get(args[4]);
 
-        long startTime = System.nanoTime();
-        List<BooleanAssignment> foundInteractions = algorithm.find(t);
-        long endTime = System.nanoTime();
+            thread.algorithm = parseAlgorithm(args[5]);
+            thread.t = Integer.parseInt(args[6]);
+            Long seed = Long.parseLong(args[7]);
 
-        long elapsedTimeInMS = (endTime - startTime) / 1_000_000;
+            Double fpNoise = Double.parseDouble(args[8]);
+            Double fnNoise = Double.parseDouble(args[9]);
+            Long timeout = Long.parseLong(args[10]);
 
+            thread.algorithm.reset();
+            thread.algorithm.setCore(core.getGroups().get(0).get(0).toClause());
+            thread.algorithm.setVerifier(
+                    new ConfigurationOracle(interaction.toClauseList(0).getAll(), fpNoise, fnNoise));
+            thread.algorithm.setUpdater(new RandomConfigurationUpdater(model.toClauseList(), seed));
+            List<? extends ABooleanAssignment> list = sample.getGroups().get(0);
+            thread.algorithm.addConfigurations(list);
+
+            try {
+                thread.join(timeout);
+            } catch (InterruptedException e) {
+            }
+            if (thread.isFinished()) {
+                writeResults(
+                        outputPath,
+                        thread.algorithm.getVerifyCounter(),
+                        thread.elapsedTimeInMS,
+                        thread.foundInteractions);
+            } else {
+                writeResults(outputPath, -1, -1, null);
+            }
+            System.exit(0);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+    }
+
+    private static void writeResults(
+            Path outputPath, int verifyCounter, long elapsedTimeInMS, List<BooleanAssignment> foundInteractions)
+            throws IOException {
         StringBuilder sb = new StringBuilder();
         sb.append(elapsedTimeInMS);
         sb.append("\n");
-        sb.append(algorithm.getVerifyCounter());
+        sb.append(verifyCounter);
         sb.append("\n");
         if (foundInteractions != null) {
             for (BooleanAssignment foundInteraction : foundInteractions) {
@@ -100,7 +149,6 @@ public class InteractionFinderRunner {
             sb.append("null");
         }
         Files.writeString(outputPath, sb.toString());
-        System.exit(0);
     }
 
     private static BooleanAssignmentSpace loadDimacs(String path) {

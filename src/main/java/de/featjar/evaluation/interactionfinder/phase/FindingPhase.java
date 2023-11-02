@@ -207,7 +207,7 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
             String outputPath) {
         final Path output = Path.of(outputPath);
         Result<Long> timeout = evaluator.optionParser.get(Evaluator.timeout);
-
+        //        Duration.of(timeout.get(), TimeUnit.SECONDS);
         Process process = null;
         BufferedReader prcErr = null;
         try {
@@ -232,7 +232,8 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                             String.valueOf(t), //
                             String.valueOf(evaluator.getOption(Evaluator.randomSeed) + algorithmIteration), // +???
                             String.valueOf(fpNoise), //
-                            String.valueOf(fnNoise)) //
+                            String.valueOf(fnNoise),
+                            String.valueOf(TimeUnit.SECONDS.toMillis(timeout.get()))) //
                     .start();
 
             prcErr = new BufferedReader(new InputStreamReader(process.getErrorStream()));
@@ -275,12 +276,13 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                 FeatJAR.log().error(e);
             }
             if (process != null) {
-                process.destroyForcibly();
+                process.destroy();
                 try {
-                    process.waitFor();
+                    process.waitFor(5, TimeUnit.SECONDS);
                 } catch (InterruptedException e) {
                     FeatJAR.log().error(e);
                 }
+                process.destroyForcibly();
             }
         }
     }
