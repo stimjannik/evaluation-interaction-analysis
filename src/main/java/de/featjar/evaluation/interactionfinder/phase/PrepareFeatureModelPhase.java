@@ -25,8 +25,7 @@ import de.featjar.base.computation.Computations;
 import de.featjar.base.data.Result;
 import de.featjar.base.io.IO;
 import de.featjar.base.io.csv.CSVFile;
-import de.featjar.evaluation.EvaluationPhase;
-import de.featjar.evaluation.interactionfinder.InteractionFinderEvaluator;
+import de.featjar.evaluation.Evaluator;
 import de.featjar.evaluation.util.ModelReader;
 import de.featjar.formula.analysis.VariableMap;
 import de.featjar.formula.analysis.bool.ABooleanAssignment;
@@ -47,15 +46,28 @@ import java.util.stream.Collectors;
 /**
  * @author Sebastian Krieter
  */
-public class PrepareFeatureModelPhase implements EvaluationPhase<InteractionFinderEvaluator> {
+public class PrepareFeatureModelPhase extends Evaluator {
 
     private ModelReader<IFormula> modelReader;
     private CSVFile modelCSV;
 
-    public void optionLoop(InteractionFinderEvaluator evaluator, int lastChanged) {
+    @Override
+    public void runEvaluation() {
+        try {
+            modelCSV = new CSVFile(csvPath.resolve("model.csv"));
+            modelCSV.setHeaderFields("ModelID", "ModelName", "VariableCount", "ClauseCount");
+            modelCSV.flush();
+            modelReader = new ModelReader<>(modelPath, FormulaFormats.getInstance());
+            loopOverOptions(this::optionLoop, systemsOption);
+        } catch (IOException e) {
+            FeatJAR.log().error(e);
+        }
+    }
+
+    public void optionLoop(int lastChanged) {
         // read fm
-        String modelName = evaluator.cast(0);
-        int modelID = evaluator.systemNames.indexOf(modelName);
+        String modelName = cast(0);
+        int modelID = systemNames.indexOf(modelName);
         Result<IFormula> load = modelReader.read(modelName);
         if (load.isEmpty()) {
             FeatJAR.log().problems(load.getProblems());
@@ -115,13 +127,13 @@ public class PrepareFeatureModelPhase implements EvaluationPhase<InteractionFind
             try {
                 IO.save(
                         new BooleanAssignmentSpace(atomicFreeVariables, List.of(atomicFreeClauses)),
-                        evaluator.genPath.resolve(modelName).resolve("cnf.dimacs"),
+                        genPath.resolve(modelName).resolve("cnf.dimacs"),
                         new BooleanAssignmentSpaceDimacsFormat());
                 IO.save(
                         new BooleanAssignmentSpace(atomicFreeVariables, List.of(List.of(core))),
-                        evaluator.genPath.resolve(modelName).resolve("core.dimacs"),
+                        genPath.resolve(modelName).resolve("core.dimacs"),
                         new BooleanAssignmentSpaceDimacsFormat());
-                evaluator.writeCSV(modelCSV, w -> {
+                writeCSV(modelCSV, w -> {
                     w.add(modelID);
                     w.add(modelName);
                     w.add(variables.getVariableCount());
@@ -130,19 +142,6 @@ public class PrepareFeatureModelPhase implements EvaluationPhase<InteractionFind
             } catch (IOException e) {
                 FeatJAR.log().error(e);
             }
-        }
-    }
-
-    @Override
-    public void run(InteractionFinderEvaluator evaluator) {
-        try {
-            modelCSV = new CSVFile(evaluator.csvPath.resolve("model.csv"));
-            modelCSV.setHeaderFields("ModelID", "ModelName", "VariableCount", "ClauseCount");
-            modelCSV.flush();
-            modelReader = new ModelReader<>(evaluator.modelPath, FormulaFormats.getInstance());
-            evaluator.optionLoop(this, InteractionFinderEvaluator.systemsOption);
-        } catch (IOException e) {
-            FeatJAR.log().error(e);
         }
     }
 }

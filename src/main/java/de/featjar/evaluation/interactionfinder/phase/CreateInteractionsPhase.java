@@ -21,13 +21,13 @@
 package de.featjar.evaluation.interactionfinder.phase;
 
 import de.featjar.base.FeatJAR;
+import de.featjar.base.cli.ListOption;
+import de.featjar.base.cli.Option;
 import de.featjar.base.computation.Computations;
 import de.featjar.base.data.Result;
 import de.featjar.base.io.IO;
 import de.featjar.base.io.csv.CSVFile;
-import de.featjar.evaluation.EvaluationPhase;
 import de.featjar.evaluation.Evaluator;
-import de.featjar.evaluation.interactionfinder.InteractionFinderEvaluator;
 import de.featjar.formula.analysis.VariableMap;
 import de.featjar.formula.analysis.bool.BooleanAssignment;
 import de.featjar.formula.analysis.bool.BooleanAssignmentSpace;
@@ -47,7 +47,12 @@ import java.util.stream.IntStream;
 /**
  * @author Sebastian Krieter
  */
-public class CreateInteractionsPhase implements EvaluationPhase<InteractionFinderEvaluator> {
+public class CreateInteractionsPhase extends Evaluator {
+
+    public static final ListOption<Integer> interactionSizeOption =
+            new ListOption<>("interactionSize", Option.IntegerParser);
+    public static final ListOption<Integer> interactionCountOption =
+            new ListOption<>("interactionCount", Option.IntegerParser);
 
     private BooleanClauseList cnf;
     private BooleanSolution core;
@@ -59,14 +64,40 @@ public class CreateInteractionsPhase implements EvaluationPhase<InteractionFinde
     private CSVFile interactionsCSV;
     private int interactionID;
 
-    public void optionLoop(InteractionFinderEvaluator evaluator, int lastChanged) {
+    @Override
+    public List<Option<?>> getOptions() {
+        ArrayList<Option<?>> options = new ArrayList<>(super.getOptions());
+        options.add(interactionSizeOption);
+        options.add(interactionCountOption);
+        return options;
+    }
+
+    @Override
+    public void runEvaluation() {
+        try {
+            interactionsCSV = new CSVFile(csvPath.resolve("interactions_gen.csv"));
+            interactionsCSV.setHeaderFields(
+                    "ModelID", "ModelIt", "Source", "InteractionCount", "InteractionSize", "InteractionID");
+            interactionsCSV.flush();
+            randomSeed = getOption(Evaluator.randomSeed);
+            loopOverOptions(
+                    this::optionLoop,
+                    systemsOption,
+                    systemIterationsOption,
+                    interactionCountOption,
+                    interactionSizeOption);
+        } catch (IOException e) {
+            FeatJAR.log().error(e);
+        }
+    }
+
+    public void optionLoop(int lastChanged) {
         switch (lastChanged) {
             case 0: {
-                modelName = evaluator.cast(0);
-                modelID = evaluator.systemNames.indexOf(modelName);
+                modelName = cast(0);
+                modelID = systemNames.indexOf(modelName);
                 Result<BooleanAssignmentSpace> load = IO.load(
-                        evaluator.genPath.resolve(modelName).resolve("cnf.dimacs"),
-                        new BooleanAssignmentSpaceDimacsFormat());
+                        genPath.resolve(modelName).resolve("cnf.dimacs"), new BooleanAssignmentSpaceDimacsFormat());
                 if (load.isEmpty()) {
                     FeatJAR.log().problems(load.getProblems());
                 } else {
@@ -75,8 +106,7 @@ public class CreateInteractionsPhase implements EvaluationPhase<InteractionFinde
                     cnf = new BooleanClauseList(space.getGroups().get(0), variables.getVariableCount());
                 }
                 Result<BooleanAssignmentSpace> load2 = IO.load(
-                        evaluator.genPath.resolve(modelName).resolve("core.dimacs"),
-                        new BooleanAssignmentSpaceDimacsFormat());
+                        genPath.resolve(modelName).resolve("core.dimacs"), new BooleanAssignmentSpaceDimacsFormat());
                 if (load2.isEmpty()) {
                     FeatJAR.log().problems(load2.getProblems());
                 } else {
@@ -86,17 +116,16 @@ public class CreateInteractionsPhase implements EvaluationPhase<InteractionFinde
                 interactionID = 0;
             }
             case 1:
-                modelIteration = evaluator.cast(1);
+                modelIteration = cast(1);
                 BooleanSolution solution = Computations.of(cnf)
                         .map(ComputeSolutionSAT4J::new)
                         .set(ComputeSolutionSAT4J.RANDOM_SEED, randomSeed + modelIteration)
                         .compute();
-                int maxInteractionCount =
-                        evaluator.getOption(InteractionFinderEvaluator.interactionCountOption).stream()
-                                .mapToInt(i -> i)
-                                .max()
-                                .getAsInt();
-                int maxInteractionSize = evaluator.getOption(InteractionFinderEvaluator.interactionSizeOption).stream()
+                int maxInteractionCount = getOption(interactionCountOption).stream()
+                        .mapToInt(i -> i)
+                        .max()
+                        .getAsInt();
+                int maxInteractionSize = getOption(interactionSizeOption).stream()
                         .mapToInt(i -> i)
                         .max()
                         .getAsInt();
@@ -115,9 +144,7 @@ public class CreateInteractionsPhase implements EvaluationPhase<InteractionFinde
                 try {
                     IO.save(
                             new BooleanAssignmentSpace(variables, List.of(List.of(solution))),
-                            evaluator
-                                    .genPath
-                                    .resolve(modelName)
+                            genPath.resolve(modelName)
                                     .resolve("samples")
                                     .resolve(String.format("sol_gs%d.csv", modelIteration)),
                             new BooleanAssignmentSpaceCSVFormat());
@@ -125,9 +152,9 @@ public class CreateInteractionsPhase implements EvaluationPhase<InteractionFinde
                     FeatJAR.log().error(e);
                 }
             case 2:
-                interactionCount = evaluator.cast(2);
+                interactionCount = cast(2);
             case 3:
-                interactionSize = evaluator.cast(3);
+                interactionSize = cast(3);
                 ArrayList<BooleanAssignment> interactions = new ArrayList<>(interactionCount);
                 ArrayList<BooleanAssignment> updatedInteractions = new ArrayList<>(interactionCount);
                 for (int i = 0; i < interactionCount; i++) {
@@ -142,21 +169,17 @@ public class CreateInteractionsPhase implements EvaluationPhase<InteractionFinde
                 try {
                     IO.save(
                             new BooleanAssignmentSpace(variables, List.of(interactions)),
-                            evaluator
-                                    .genPath
-                                    .resolve(modelName)
+                            genPath.resolve(modelName)
                                     .resolve("interactions")
                                     .resolve(String.format("int_g%d_gs%d.dimacs", interactionID, modelIteration)),
                             new BooleanAssignmentSpaceDimacsFormat());
                     IO.save(
                             new BooleanAssignmentSpace(variables, List.of(updatedInteractions)),
-                            evaluator
-                                    .genPath
-                                    .resolve(modelName)
+                            genPath.resolve(modelName)
                                     .resolve("interactions")
                                     .resolve(String.format("uint_g%d_gs%d.dimacs", interactionID, modelIteration)),
                             new BooleanAssignmentSpaceDimacsFormat());
-                    evaluator.writeCSV(interactionsCSV, w -> {
+                    writeCSV(interactionsCSV, w -> {
                         w.add(modelID);
                         w.add(modelIteration);
                         w.add("g");
@@ -169,25 +192,6 @@ public class CreateInteractionsPhase implements EvaluationPhase<InteractionFinde
                     FeatJAR.log().error(e);
                 }
             default:
-        }
-    }
-
-    @Override
-    public void run(InteractionFinderEvaluator evaluator) {
-        try {
-            interactionsCSV = new CSVFile(evaluator.csvPath.resolve("interactions_gen.csv"));
-            interactionsCSV.setHeaderFields(
-                    "ModelID", "ModelIt", "Source", "InteractionCount", "InteractionSize", "InteractionID");
-            interactionsCSV.flush();
-            randomSeed = evaluator.getOption(Evaluator.randomSeed);
-            evaluator.optionLoop(
-                    this,
-                    InteractionFinderEvaluator.systemsOption,
-                    InteractionFinderEvaluator.systemIterationsOption,
-                    InteractionFinderEvaluator.interactionCountOption,
-                    InteractionFinderEvaluator.interactionSizeOption);
-        } catch (IOException e) {
-            FeatJAR.log().error(e);
         }
     }
 }

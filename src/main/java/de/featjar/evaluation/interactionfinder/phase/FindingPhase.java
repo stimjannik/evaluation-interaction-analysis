@@ -21,14 +21,14 @@
 package de.featjar.evaluation.interactionfinder.phase;
 
 import de.featjar.base.FeatJAR;
+import de.featjar.base.cli.ListOption;
+import de.featjar.base.cli.Option;
 import de.featjar.base.computation.Computations;
 import de.featjar.base.data.IntegerList;
 import de.featjar.base.data.Result;
 import de.featjar.base.io.IO;
 import de.featjar.base.io.csv.CSVFile;
-import de.featjar.evaluation.EvaluationPhase;
 import de.featjar.evaluation.Evaluator;
-import de.featjar.evaluation.interactionfinder.InteractionFinderEvaluator;
 import de.featjar.evaluation.interactionfinder.InteractionFinderRunner;
 import de.featjar.formula.analysis.VariableMap;
 import de.featjar.formula.analysis.bool.ABooleanAssignment;
@@ -54,7 +54,15 @@ import java.util.stream.Collectors;
 /**
  * @author Sebastian Krieter
  */
-public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator> {
+public class FindingPhase extends Evaluator {
+
+    public static final Option<Integer> memoryOption = new Option<>("memory", Option.IntegerParser, 8);
+    public static final ListOption<Integer> tOption = new ListOption<>("t", Option.IntegerParser);
+    public static final ListOption<Double> fpNoiseOption = new ListOption<>("fpNoise", Option.DoubleParser);
+    public static final ListOption<Double> fnNoiseOption = new ListOption<>("fnNoise", Option.DoubleParser);
+    public static final ListOption<String> algorithmsOption = new ListOption<>("algorithm", Option.StringParser);
+
+    private static final Pattern compile = Pattern.compile("uint_([a-z]+\\d+)_([a-z]+\\d+)[.]dimacs");
 
     private List<BooleanClause> faultyInteractionsUpdated;
     private List<ABooleanAssignment> foundInteractions;
@@ -71,16 +79,62 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
     private double fpNoise, fnNoise;
     private String modelName, algorithmName, interactionID;
 
-    private static final Pattern compile = Pattern.compile("uint_([a-z]+\\d+)_([a-z]+\\d+)[.]dimacs");
+    @Override
+    public List<Option<?>> getOptions() {
+        ArrayList<Option<?>> options = new ArrayList<>(super.getOptions());
+        options.add(memoryOption);
+        options.add(tOption);
+        options.add(fpNoiseOption);
+        options.add(fnNoiseOption);
+        options.add(algorithmsOption);
+        return options;
+    }
 
-    public void optionLoop(InteractionFinderEvaluator evaluator, int lastChanged) {
+    @Override
+    public void runEvaluation() {
+        try {
+            dataCSV = new CSVFile(csvPath.resolve("data.csv"));
+            dataCSV.setHeaderFields(
+                    "ModelID",
+                    "InteractionID",
+                    "AlgorithmID",
+                    "AlgorithmIt",
+                    "T",
+                    "fpNoise",
+                    "fnNoise",
+                    "NInteractionsFound",
+                    "FoundContainsFaulty",
+                    "FaultyContainsFound",
+                    "NFoundLiterals",
+                    "NSameLiterals",
+                    "NNonFoundLiterals",
+                    "NWrongLiteralsFound",
+                    "NVerifications",
+                    "TimeMS");
+
+            algorithmCSV = new CSVFile(csvPath.resolve("algorithms.csv"));
+            algorithmCSV.setHeaderFields("AlgorithmID", "AlgorithmName", "T");
+            algorithmCSV.flush();
+            loopOverOptions(
+                    this::optionLoop,
+                    systemsOption,
+                    fpNoiseOption,
+                    fnNoiseOption,
+                    algorithmsOption,
+                    tOption,
+                    algorithmIterationsOption);
+        } catch (IOException e) {
+            FeatJAR.log().error(e);
+        }
+    }
+
+    public void optionLoop(int lastChanged) {
         switch (lastChanged) {
             case 0:
-                modelName = evaluator.cast(0);
-                modelID = evaluator.systemNames.indexOf(modelName);
+                modelName = cast(0);
+                modelID = systemNames.indexOf(modelName);
                 Result<BooleanAssignmentSpace> load = IO.load(
-                        evaluator.genPath.resolve(modelName).resolve("cnf.dimacs"),
-                        new BooleanAssignmentSpaceDimacsFormat());
+                        genPath.resolve(modelName).resolve("cnf.dimacs"), new BooleanAssignmentSpaceDimacsFormat());
                 if (load.isEmpty()) {
                     FeatJAR.log().problems(load.getProblems());
                 } else {
@@ -89,29 +143,29 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                     cnf = new BooleanClauseList(space.getGroups().get(0), variables.getVariableCount());
                 }
             case 1:
-                fpNoise = evaluator.cast(1);
+                fpNoise = cast(1);
             case 2:
-                fnNoise = evaluator.cast(2);
+                fnNoise = cast(2);
                 if (algorithmID > 0) {
                     algorithmCSV = null;
                 }
                 algorithmID = 0;
             case 3:
-                algorithmName = evaluator.cast(3);
+                algorithmName = cast(3);
             case 4:
-                t = evaluator.cast(4);
+                t = cast(4);
                 algorithmID++;
                 if (algorithmCSV != null) {
-                    evaluator.writeCSV(algorithmCSV, w -> {
+                    writeCSV(algorithmCSV, w -> {
                         w.add(algorithmID);
                         w.add(algorithmName);
                         w.add(t);
                     });
                 }
             case 5:
-                algorithmIteration = evaluator.cast(5);
+                algorithmIteration = cast(5);
 
-                Path outPath = evaluator.genPath.resolve(modelName);
+                Path outPath = genPath.resolve(modelName);
                 List<Path> interactionFiles;
                 try {
                     Path interactionDir = outPath.resolve("interactions");
@@ -137,21 +191,14 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                                 .toString();
                         String modelPathString = outPath.resolve("cnf.dimacs").toString();
                         String corePathString = outPath.resolve("core.dimacs").toString();
-                        String outputPath =
-                                evaluator.tempPath.resolve("result.txt").toString();
+                        String outputPath = tempPath.resolve("result.txt").toString();
 
                         BooleanAssignmentSpace interaction = IO.load(
                                         interactionFile, new BooleanAssignmentSpaceDimacsFormat())
                                 .orElseThrow();
                         faultyInteractionsUpdated = interaction.toClauseList(0).getAll();
 
-                        startProcess(
-                                evaluator,
-                                interactionFile,
-                                samplePathString,
-                                modelPathString,
-                                corePathString,
-                                outputPath);
+                        startProcess(interactionFile, samplePathString, modelPathString, corePathString, outputPath);
                         if (foundInteractions != null) {
                             foundInteractionsMerged = new BooleanAssignment(IntegerList.merge(foundInteractions));
                             foundInteractionsMergedAndUpdated = Computations.of(cnf)
@@ -167,9 +214,7 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                         try {
                             IO.save(
                                     new BooleanAssignmentSpace(variables, List.of(foundInteractions)),
-                                    evaluator
-                                            .genPath
-                                            .resolve(modelName)
+                                    genPath.resolve(modelName)
                                             .resolve("found")
                                             .resolve(String.format(
                                                     "int_found_%s_%d_%d_%s.dimacs",
@@ -180,15 +225,13 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                                             variables,
                                             List.of(List.of(
                                                     foundInteractionsMerged, foundInteractionsMergedAndUpdated))),
-                                    evaluator
-                                            .genPath
-                                            .resolve(modelName)
+                                    genPath.resolve(modelName)
                                             .resolve("found")
                                             .resolve(String.format(
                                                     "uint_found_%s_%d_%d_%s.dimacs",
                                                     algorithmName, t, algorithmIteration, interactionID)),
                                     new BooleanAssignmentSpaceDimacsFormat());
-                            evaluator.writeCSV(dataCSV, this::writeRunData);
+                            writeCSV(dataCSV, this::writeRunData);
                         } catch (IOException e) {
                             FeatJAR.log().error(e);
                         }
@@ -199,21 +242,19 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
     }
 
     private void startProcess(
-            InteractionFinderEvaluator evaluator,
             Path interactionFile,
             String samplePathString,
             String modelPathString,
             String corePathString,
             String outputPath) {
         final Path output = Path.of(outputPath);
-        Result<Long> timeout = evaluator.optionParser.get(Evaluator.timeout);
-        //        Duration.of(timeout.get(), TimeUnit.SECONDS);
+        Result<Long> timeout = optionParser.get(Evaluator.timeout);
         Process process = null;
         BufferedReader prcErr = null;
         try {
             process = new ProcessBuilder(
                             "java", //
-                            "-Xmx" + evaluator.getOption(InteractionFinderEvaluator.memoryOption) + "g", //
+                            "-Xmx" + getOption(memoryOption) + "g", //
                             "-da", //
                             "-cp", //
                             "build/libs/evaluation-interaction-analysis-0.1.0-SNAPSHOT-all.jar", //
@@ -230,7 +271,7 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
                             outputPath, //
                             algorithmName,
                             String.valueOf(t), //
-                            String.valueOf(evaluator.getOption(Evaluator.randomSeed) + algorithmIteration), // +???
+                            String.valueOf(getOption(Evaluator.randomSeed) + algorithmIteration), // +???
                             String.valueOf(fpNoise), //
                             String.valueOf(fnNoise),
                             String.valueOf(TimeUnit.SECONDS.toMillis(timeout.get()))) //
@@ -296,75 +337,37 @@ public class FindingPhase implements EvaluationPhase<InteractionFinderEvaluator>
         dataCSVWriter.add(t);
         dataCSVWriter.add(fpNoise);
         dataCSVWriter.add(fnNoise);
-        dataCSVWriter.add(foundInteractions != null ? foundInteractions.size() : -1);
+        dataCSVWriter.add(foundInteractions.size());
         dataCSVWriter.add(
-                foundInteractions != null
-                        ? foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0)) ? "T" : "F"
-                        : "N");
+                foundInteractions.isEmpty()
+                        ? "N"
+                        : foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0)) ? "T" : "F");
         dataCSVWriter.add(
-                foundInteractions != null
-                        ? faultyInteractionsUpdated.get(0).containsAll(foundInteractionsMergedAndUpdated) ? "T" : "F"
-                        : "N");
-        dataCSVWriter.add(foundInteractions != null ? foundInteractionsMergedAndUpdated.countNonZero() : -1);
+                foundInteractions.isEmpty()
+                        ? "N"
+                        : faultyInteractionsUpdated.get(0).containsAll(foundInteractionsMergedAndUpdated) ? "T" : "F");
+        dataCSVWriter.add(foundInteractions.isEmpty() ? 0 : foundInteractionsMergedAndUpdated.countNonZero());
         dataCSVWriter.add(
-                foundInteractions != null
-                        ? faultyInteractionsUpdated
+                foundInteractions.isEmpty()
+                        ? -1
+                        : faultyInteractionsUpdated
                                 .get(0)
                                 .retainAll(foundInteractionsMergedAndUpdated)
-                                .countNonZero()
-                        : -1);
+                                .countNonZero());
         dataCSVWriter.add(
-                foundInteractions != null
-                        ? faultyInteractionsUpdated
+                foundInteractions.isEmpty()
+                        ? -1
+                        : faultyInteractionsUpdated
                                 .get(0)
                                 .removeAll(foundInteractionsMergedAndUpdated)
-                                .countNonZero()
-                        : -1);
+                                .countNonZero());
         dataCSVWriter.add(
-                foundInteractions != null
-                        ? foundInteractionsMergedAndUpdated
+                foundInteractions.isEmpty()
+                        ? -1
+                        : foundInteractionsMergedAndUpdated
                                 .removeAll(faultyInteractionsUpdated.get(0))
-                                .countNonZero()
-                        : -1);
+                                .countNonZero());
         dataCSVWriter.add(verificationCounter);
         dataCSVWriter.add(elapsedTimeInMS);
-    }
-
-    @Override
-    public void run(InteractionFinderEvaluator evaluator) {
-        try {
-            dataCSV = new CSVFile(evaluator.csvPath.resolve("data.csv"));
-            dataCSV.setHeaderFields(
-                    "ModelID",
-                    "InteractionID",
-                    "AlgorithmID",
-                    "AlgorithmIt",
-                    "T",
-                    "fpNoise",
-                    "fnNoise",
-                    "NInteractionsFound",
-                    "FoundContainsFaulty",
-                    "FaultyContainsFound",
-                    "NFoundLiterals",
-                    "NSameLiterals",
-                    "NNonFoundLiterals",
-                    "NWrongLiteralsFound",
-                    "NVerifications",
-                    "TimeMS");
-
-            algorithmCSV = new CSVFile(evaluator.csvPath.resolve("algorithms.csv"));
-            algorithmCSV.setHeaderFields("AlgorithmID", "AlgorithmName", "T");
-            algorithmCSV.flush();
-            evaluator.optionLoop(
-                    this,
-                    InteractionFinderEvaluator.systemsOption,
-                    InteractionFinderEvaluator.fpNoiseOption,
-                    InteractionFinderEvaluator.fnNoiseOption,
-                    InteractionFinderEvaluator.algorithmsOption,
-                    InteractionFinderEvaluator.tOption,
-                    InteractionFinderEvaluator.algorithmIterationsOption);
-        } catch (IOException e) {
-            FeatJAR.log().error(e);
-        }
     }
 }
