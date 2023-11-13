@@ -76,9 +76,9 @@ public class InteractionFinderRunner {
     }
 
     public static void main(String[] args) throws IOException {
-        final boolean runsInFeatJAR = FeatJAR.isInitialized();
+        boolean standalone = !FeatJAR.isInitialized();
         try {
-            if (!runsInFeatJAR) {
+            if (standalone) {
                 final Configuration configuration = new Configuration();
                 configuration.logConfig.logAtMost(Log.Verbosity.ERROR);
                 configuration.cacheConfig.setCachePolicy(Cache.CachePolicy.CACHE_NONE);
@@ -123,13 +123,13 @@ public class InteractionFinderRunner {
             } else {
                 writeResults(outputPath, -1, -1, null);
             }
-            if (!runsInFeatJAR) {
+            if (standalone) {
                 System.exit(0);
             }
         } catch (Exception e) {
             e.printStackTrace();
-            if (!runsInFeatJAR) {
-                System.exit(-1);
+            if (standalone) {
+                System.exit(1);
             }
         }
     }
