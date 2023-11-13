@@ -76,8 +76,9 @@ public class InteractionFinderRunner {
     }
 
     public static void main(String[] args) throws IOException {
+        final boolean runsInFeatJAR = FeatJAR.isInitialized();
         try {
-            if (!FeatJAR.isInitialized()) {
+            if (!runsInFeatJAR) {
                 final Configuration configuration = new Configuration();
                 configuration.logConfig.logAtMost(Log.Verbosity.ERROR);
                 configuration.cacheConfig.setCachePolicy(Cache.CachePolicy.CACHE_NONE);
@@ -108,6 +109,7 @@ public class InteractionFinderRunner {
             List<? extends ABooleanAssignment> list = sample.getGroups().get(0);
             thread.algorithm.addConfigurations(list);
 
+            thread.start();
             try {
                 thread.join(timeout);
             } catch (InterruptedException e) {
@@ -121,10 +123,14 @@ public class InteractionFinderRunner {
             } else {
                 writeResults(outputPath, -1, -1, null);
             }
-            System.exit(0);
+            if (!runsInFeatJAR) {
+                System.exit(0);
+            }
         } catch (Exception e) {
             e.printStackTrace();
-            System.exit(-1);
+            if (!runsInFeatJAR) {
+                System.exit(-1);
+            }
         }
     }
 
