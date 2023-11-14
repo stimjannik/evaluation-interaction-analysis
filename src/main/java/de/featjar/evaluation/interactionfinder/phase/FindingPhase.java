@@ -23,8 +23,6 @@ package de.featjar.evaluation.interactionfinder.phase;
 import de.featjar.base.FeatJAR;
 import de.featjar.base.cli.ListOption;
 import de.featjar.base.cli.Option;
-import de.featjar.base.computation.Computations;
-import de.featjar.base.data.IntegerList;
 import de.featjar.base.data.Result;
 import de.featjar.base.io.IO;
 import de.featjar.base.io.csv.CSVFile;
@@ -35,8 +33,6 @@ import de.featjar.formula.analysis.bool.ABooleanAssignment;
 import de.featjar.formula.analysis.bool.BooleanAssignment;
 import de.featjar.formula.analysis.bool.BooleanAssignmentSpace;
 import de.featjar.formula.analysis.bool.BooleanClause;
-import de.featjar.formula.analysis.bool.BooleanClauseList;
-import de.featjar.formula.analysis.sat4j.ComputeCoreDeadVariablesSAT4J;
 import de.featjar.formula.io.dimacs.BooleanAssignmentSpaceDimacsFormat;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -51,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author Sebastian Krieter
@@ -74,7 +71,6 @@ public class FindingPhase extends Evaluator {
     private int verificationCounter;
 
     private CSVFile dataCSV, algorithmCSV;
-    private BooleanClauseList cnf;
     private VariableMap variables;
 
     private int t, modelID, algorithmID, algorithmIteration;
@@ -143,7 +139,6 @@ public class FindingPhase extends Evaluator {
                 } else {
                     BooleanAssignmentSpace space = load.get();
                     variables = space.getVariableMap();
-                    cnf = new BooleanClauseList(space.getGroups().get(0), variables.getVariableCount());
                 }
             case 1:
                 fpNoise = cast(1);
@@ -204,17 +199,6 @@ public class FindingPhase extends Evaluator {
                 faultyInteractionsUpdated = interaction.toClauseList(0).getAll();
 
                 startProcess(interactionFile, samplePathString, modelPathString, corePathString, outputPath);
-                if (foundInteractions != null) {
-                    foundInteractionsMerged = new BooleanAssignment(IntegerList.merge(foundInteractions));
-                    foundInteractionsMergedAndUpdated = Computations.of(cnf)
-                            .map(ComputeCoreDeadVariablesSAT4J::new)
-                            .set(ComputeCoreDeadVariablesSAT4J.ASSUMED_ASSIGNMENT, foundInteractionsMerged)
-                            .compute();
-                } else {
-                    foundInteractions = Collections.emptyList();
-                    foundInteractionsMerged = new BooleanAssignment();
-                    foundInteractionsMergedAndUpdated = new BooleanAssignment();
-                }
 
                 try {
                     IO.save(
@@ -266,6 +250,14 @@ public class FindingPhase extends Evaluator {
                 String.valueOf(fpNoise), //
                 String.valueOf(fnNoise),
                 String.valueOf(TimeUnit.SECONDS.toMillis(timeout.get()))));
+
+        FeatJAR.log()
+                .debug(() -> String.format(
+                        "%d | %.3f | %.3f | %.3f", //
+                        Thread.activeCount(), //
+                        (Runtime.getRuntime().freeMemory() / 1000_000) / 1000.0, //
+                        (Runtime.getRuntime().totalMemory() / 1000_000) / 1000.0, //
+                        (Runtime.getRuntime().maxMemory() / 1000_000) / 1000.0));
 
         if (getOption(runjarOption)) {
             runProcess(output, args);
@@ -327,16 +319,26 @@ public class FindingPhase extends Evaluator {
 
     private void readResults(final Path output, boolean sucessful) {
         if (sucessful && Files.exists(output)) {
-            try {
-                String[] results = Files.lines(output).toArray(String[]::new);
+            try (Stream<String> lines = Files.lines(output)) {
+                String[] results = lines.toArray(String[]::new);
                 elapsedTimeInMS = Long.parseLong(results[0]);
                 verificationCounter = Integer.parseInt(results[1]);
 
                 if ("null".equals(results[2])) {
-                    foundInteractions = null;
+                    foundInteractionsMerged = new BooleanAssignment();
                 } else {
-                    foundInteractions = new ArrayList<>(results.length - 2);
-                    for (int i = 2; i < results.length; i++) {
+                    foundInteractionsMerged = InteractionFinderRunner.parseLiteralList(results[2]);
+                }
+                if ("null".equals(results[3])) {
+                    foundInteractionsMergedAndUpdated = new BooleanAssignment();
+                } else {
+                    foundInteractionsMergedAndUpdated = InteractionFinderRunner.parseLiteralList(results[3]);
+                }
+                if ("null".equals(results[4])) {
+                    foundInteractions = Collections.emptyList();
+                } else {
+                    foundInteractions = new ArrayList<>(results.length - 4);
+                    for (int i = 4; i < results.length; i++) {
                         foundInteractions.add(InteractionFinderRunner.parseLiteralList(results[i]));
                     }
                 }

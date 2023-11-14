@@ -23,13 +23,17 @@ package de.featjar.evaluation.interactionfinder;
 import de.featjar.base.FeatJAR;
 import de.featjar.base.FeatJAR.Configuration;
 import de.featjar.base.computation.Cache;
+import de.featjar.base.computation.Computations;
+import de.featjar.base.data.IntegerList;
 import de.featjar.base.io.IO;
 import de.featjar.base.log.Log;
 import de.featjar.formula.analysis.bool.ABooleanAssignment;
 import de.featjar.formula.analysis.bool.BooleanAssignment;
 import de.featjar.formula.analysis.bool.BooleanAssignmentSpace;
 import de.featjar.formula.analysis.bool.BooleanClause;
+import de.featjar.formula.analysis.bool.BooleanClauseList;
 import de.featjar.formula.analysis.combinations.IncInteractionFinder;
+import de.featjar.formula.analysis.sat4j.ComputeCoreDeadVariablesSAT4J;
 import de.featjar.formula.analysis.sat4j.RandomConfigurationUpdater;
 import de.featjar.formula.io.csv.BooleanAssignmentSpaceCSVFormat;
 import de.featjar.formula.io.dimacs.BooleanAssignmentSpaceDimacsFormat;
@@ -88,6 +92,7 @@ public class InteractionFinderRunner {
             FinderThread thread = new FinderThread();
 
             BooleanAssignmentSpace model = loadDimacs(args[0]);
+            BooleanClauseList cnf = model.toClauseList();
             BooleanAssignmentSpace core = loadDimacs(args[1]);
             BooleanAssignmentSpace sample = loadDimacs(args[2]);
             BooleanAssignmentSpace interaction = loadDimacs(args[3]);
@@ -105,7 +110,7 @@ public class InteractionFinderRunner {
             thread.algorithm.setCore(core.getGroups().get(0).get(0).toClause());
             thread.algorithm.setVerifier(
                     new ConfigurationOracle(interaction.toClauseList(0).getAll(), fpNoise, fnNoise));
-            thread.algorithm.setUpdater(new RandomConfigurationUpdater(model.toClauseList(), seed));
+            thread.algorithm.setUpdater(new RandomConfigurationUpdater(cnf, seed));
             List<? extends ABooleanAssignment> list = sample.getGroups().get(0);
             thread.algorithm.addConfigurations(list);
 
@@ -115,13 +120,26 @@ public class InteractionFinderRunner {
             } catch (InterruptedException e) {
             }
             if (thread.isFinished()) {
+                BooleanAssignment foundInteractionsMerged, foundInteractionsMergedAndUpdated;
+                if (thread.foundInteractions != null) {
+                    foundInteractionsMerged = new BooleanAssignment(IntegerList.merge(thread.foundInteractions));
+                    foundInteractionsMergedAndUpdated = Computations.of(cnf)
+                            .map(ComputeCoreDeadVariablesSAT4J::new)
+                            .set(ComputeCoreDeadVariablesSAT4J.ASSUMED_ASSIGNMENT, foundInteractionsMerged)
+                            .compute();
+                } else {
+                    foundInteractionsMerged = null;
+                    foundInteractionsMergedAndUpdated = null;
+                }
                 writeResults(
                         outputPath,
                         thread.algorithm.getVerifyCounter(),
                         thread.elapsedTimeInMS,
-                        thread.foundInteractions);
+                        thread.foundInteractions,
+                        foundInteractionsMerged,
+                        foundInteractionsMergedAndUpdated);
             } else {
-                writeResults(outputPath, -1, -1, null);
+                writeResults(outputPath, -1, -1, null, null, null);
             }
             if (standalone) {
                 System.exit(0);
@@ -135,26 +153,47 @@ public class InteractionFinderRunner {
     }
 
     private static void writeResults(
-            Path outputPath, int verifyCounter, long elapsedTimeInMS, List<BooleanAssignment> foundInteractions)
+            Path outputPath,
+            int verifyCounter,
+            long elapsedTimeInMS,
+            List<BooleanAssignment> foundInteractions,
+            BooleanAssignment foundInteractionsMerged,
+            BooleanAssignment foundInteractionsMergedAndUpdated)
             throws IOException {
         StringBuilder sb = new StringBuilder();
         sb.append(elapsedTimeInMS);
         sb.append("\n");
         sb.append(verifyCounter);
         sb.append("\n");
+        if (foundInteractionsMerged != null) {
+            writeAssignment(sb, foundInteractionsMerged);
+        } else {
+            sb.append("null\n");
+        }
+        if (foundInteractionsMergedAndUpdated != null) {
+            writeAssignment(sb, foundInteractionsMergedAndUpdated);
+        } else {
+            sb.append("null\n");
+        }
         if (foundInteractions != null) {
             for (BooleanAssignment foundInteraction : foundInteractions) {
-                for (int l : foundInteraction.get()) {
-                    sb.append(l);
-                    sb.append(";");
-                }
-                sb.replace(sb.length() - 1, sb.length(), "\n");
+                writeAssignment(sb, foundInteraction);
             }
-            sb.delete(sb.length() - 1, sb.length());
+            if (!foundInteractions.isEmpty()) {
+                sb.delete(sb.length() - 1, sb.length());
+            }
         } else {
             sb.append("null");
         }
         Files.writeString(outputPath, sb.toString());
+    }
+
+    private static void writeAssignment(StringBuilder sb, BooleanAssignment foundInteraction) {
+        for (int l : foundInteraction.get()) {
+            sb.append(l);
+            sb.append(";");
+        }
+        sb.replace(sb.length() - 1, sb.length(), "\n");
     }
 
     private static BooleanAssignmentSpace loadDimacs(String path) {
