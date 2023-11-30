@@ -58,7 +58,8 @@ public class PrepareFeatureModelPhase extends Evaluator {
             modelCSV.setHeaderFields("ModelID", "ModelName", "VariableCount", "ClauseCount");
             modelCSV.flush();
             modelReader = new ModelReader<>(modelPath, FormulaFormats.getInstance());
-            loopOverOptions(this::optionLoop, systemsOption);
+            optionCombiner.init(systemsOption);
+            optionCombiner.loopOverOptions(this::optionLoop);
         } catch (IOException e) {
             FeatJAR.log().error(e);
         }
@@ -66,7 +67,7 @@ public class PrepareFeatureModelPhase extends Evaluator {
 
     public void optionLoop(int lastChanged) {
         // read fm
-        String modelName = cast(0);
+        String modelName = optionCombiner.getValue(0);
         int modelID = systemNames.indexOf(modelName);
         Result<IFormula> load = modelReader.read(modelName);
         if (load.isEmpty()) {

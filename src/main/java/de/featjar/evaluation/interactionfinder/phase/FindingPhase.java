@@ -27,6 +27,7 @@ import de.featjar.base.data.Result;
 import de.featjar.base.io.IO;
 import de.featjar.base.io.csv.CSVFile;
 import de.featjar.evaluation.Evaluator;
+import de.featjar.evaluation.ProgressTracker;
 import de.featjar.evaluation.interactionfinder.InteractionFinderRunner;
 import de.featjar.formula.analysis.VariableMap;
 import de.featjar.formula.analysis.bool.ABooleanAssignment;
@@ -63,12 +64,44 @@ public class FindingPhase extends Evaluator {
 
     private static final Pattern compile = Pattern.compile("uint_([a-z]+\\d+)_([a-z]+\\d+)[.]dimacs");
 
+    private static class ProcessResult {
+        List<ABooleanAssignment> foundInteractions;
+        ABooleanAssignment foundInteractionsMerged;
+        ABooleanAssignment foundInteractionsMergedAndUpdated;
+        long elapsedTimeInMS;
+        int verificationCounter;
+        boolean timeoutOccured, errorOccured;
+
+        ProcessResult() {
+            elapsedTimeInMS = -1;
+            verificationCounter = -1;
+            timeoutOccured = false;
+            errorOccured = false;
+            foundInteractions = Collections.emptyList();
+            foundInteractionsMerged = new BooleanAssignment();
+            foundInteractionsMergedAndUpdated = new BooleanAssignment();
+        }
+
+        ProcessResult(
+                List<ABooleanAssignment> foundInteractions,
+                ABooleanAssignment foundInteractionsMerged,
+                ABooleanAssignment foundInteractionsMergedAndUpdated,
+                long elapsedTimeInMS,
+                int verificationCounter,
+                boolean timeoutOccured,
+                boolean errorOccured) {
+            this.foundInteractions = foundInteractions;
+            this.foundInteractionsMerged = foundInteractionsMerged;
+            this.foundInteractionsMergedAndUpdated = foundInteractionsMergedAndUpdated;
+            this.elapsedTimeInMS = elapsedTimeInMS;
+            this.verificationCounter = verificationCounter;
+            this.timeoutOccured = timeoutOccured;
+            this.errorOccured = errorOccured;
+        }
+    }
+
     private List<BooleanClause> faultyInteractionsUpdated;
-    private List<ABooleanAssignment> foundInteractions;
-    private ABooleanAssignment foundInteractionsMerged;
-    private ABooleanAssignment foundInteractionsMergedAndUpdated;
-    private long elapsedTimeInMS;
-    private int verificationCounter;
+    private ProcessResult result;
 
     private CSVFile dataCSV, algorithmCSV;
     private VariableMap variables;
@@ -109,19 +142,17 @@ public class FindingPhase extends Evaluator {
                     "NNonFoundLiterals",
                     "NWrongLiteralsFound",
                     "NVerifications",
-                    "TimeMS");
+                    "TimeMS",
+                    "Timeout",
+                    "Error");
 
             algorithmCSV = new CSVFile(csvPath.resolve("algorithms.csv"));
             algorithmCSV.setHeaderFields("AlgorithmID", "AlgorithmName", "T");
             algorithmCSV.flush();
-            loopOverOptions(
-                    this::optionLoop,
-                    systemsOption,
-                    fpNoiseOption,
-                    fnNoiseOption,
-                    algorithmsOption,
-                    tOption,
-                    algorithmIterationsOption);
+
+            optionCombiner.init(
+                    systemsOption, fpNoiseOption, fnNoiseOption, algorithmsOption, tOption, algorithmIterationsOption);
+            optionCombiner.loopOverOptions(this::optionLoop);
         } catch (IOException e) {
             FeatJAR.log().error(e);
         }
@@ -130,7 +161,7 @@ public class FindingPhase extends Evaluator {
     public void optionLoop(int lastChanged) {
         switch (lastChanged) {
             case 0:
-                modelName = cast(0);
+                modelName = optionCombiner.getValue(0);
                 modelID = systemNames.indexOf(modelName);
                 Result<BooleanAssignmentSpace> load = IO.load(
                         genPath.resolve(modelName).resolve("cnf.dimacs"), new BooleanAssignmentSpaceDimacsFormat());
@@ -141,17 +172,17 @@ public class FindingPhase extends Evaluator {
                     variables = space.getVariableMap();
                 }
             case 1:
-                fpNoise = cast(1);
+                fpNoise = optionCombiner.getValue(1);
             case 2:
-                fnNoise = cast(2);
+                fnNoise = optionCombiner.getValue(2);
                 if (algorithmID > 0) {
                     algorithmCSV = null;
                 }
                 algorithmID = 0;
             case 3:
-                algorithmName = cast(3);
+                algorithmName = optionCombiner.getValue(3);
             case 4:
-                t = cast(4);
+                t = optionCombiner.getValue(4);
                 algorithmID++;
                 if (algorithmCSV != null) {
                     writeCSV(algorithmCSV, w -> {
@@ -161,7 +192,7 @@ public class FindingPhase extends Evaluator {
                     });
                 }
             case 5:
-                algorithmIteration = cast(5);
+                algorithmIteration = optionCombiner.getValue(5);
                 processInteractions();
             default:
         }
@@ -182,7 +213,9 @@ public class FindingPhase extends Evaluator {
             FeatJAR.log().error(e);
             return;
         }
+        ProgressTracker progress = new ProgressTracker(interactionFiles.size());
         for (Path interactionFile : interactionFiles) {
+            FeatJAR.log().progress(progress::nextAndPrint);
             Matcher matcher = compile.matcher(interactionFile.getFileName().toString());
             if (matcher.matches()) {
                 interactionID = matcher.group(1);
@@ -198,11 +231,12 @@ public class FindingPhase extends Evaluator {
                         .orElseThrow();
                 faultyInteractionsUpdated = interaction.toClauseList(0).getAll();
 
-                startProcess(interactionFile, samplePathString, modelPathString, corePathString, outputPath);
+                ProcessResult result =
+                        startProcess(interactionFile, samplePathString, modelPathString, corePathString, outputPath);
 
                 try {
                     IO.save(
-                            new BooleanAssignmentSpace(variables, List.of(foundInteractions)),
+                            new BooleanAssignmentSpace(variables, List.of(result.foundInteractions)),
                             genPath.resolve(modelName)
                                     .resolve("found")
                                     .resolve(String.format(
@@ -212,7 +246,8 @@ public class FindingPhase extends Evaluator {
                     IO.save(
                             new BooleanAssignmentSpace(
                                     variables,
-                                    List.of(List.of(foundInteractionsMerged, foundInteractionsMergedAndUpdated))),
+                                    List.of(List.of(
+                                            result.foundInteractionsMerged, result.foundInteractionsMergedAndUpdated))),
                             genPath.resolve(modelName)
                                     .resolve("found")
                                     .resolve(String.format(
@@ -225,9 +260,10 @@ public class FindingPhase extends Evaluator {
                 }
             }
         }
+        FeatJAR.log().progress(progress::printStatus);
     }
 
-    private void startProcess(
+    private ProcessResult startProcess(
             Path interactionFile,
             String samplePathString,
             String modelPathString,
@@ -264,6 +300,7 @@ public class FindingPhase extends Evaluator {
         } else {
             runInPlace(output, args);
         }
+        return result = readResults(output);
     }
 
     private void runInPlace(final Path output, List<String> args) {
@@ -272,13 +309,11 @@ public class FindingPhase extends Evaluator {
         } catch (IOException e) {
             FeatJAR.log().error(e);
         }
-        readResults(output, true);
     }
 
     private void runProcess(final Path output, List<String> args) {
         Process process = null;
         BufferedReader prcErr = null;
-        int exitCode = -1;
         try {
             ArrayList<String> jvmArgs = new ArrayList<>(Arrays.asList(
                     "java", //
@@ -290,11 +325,10 @@ public class FindingPhase extends Evaluator {
             jvmArgs.addAll(args);
             process = new ProcessBuilder(jvmArgs).start();
             prcErr = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-            exitCode = process.waitFor();
+            process.waitFor();
         } catch (Exception e) {
             FeatJAR.log().error(e);
         } finally {
-            readResults(output, exitCode == 0);
             try {
                 if (prcErr != null) {
                     if (prcErr.ready()) {
@@ -317,39 +351,44 @@ public class FindingPhase extends Evaluator {
         }
     }
 
-    private void readResults(final Path output, boolean sucessful) {
-        if (sucessful && Files.exists(output)) {
+    private ProcessResult readResults(final Path output) {
+        if (Files.exists(output)) {
+            long parsedElapsedTimeInMS;
+            int parsedVerificationCounter;
+            boolean parsedTimeout;
+            boolean parsedError;
+            List<ABooleanAssignment> parsedInteractions;
+            ABooleanAssignment parsedInteractionsMerged;
+            ABooleanAssignment parsedInteractionsMergedAndUpdated;
             try (Stream<String> lines = Files.lines(output)) {
                 String[] results = lines.toArray(String[]::new);
-                elapsedTimeInMS = Long.parseLong(results[0]);
-                verificationCounter = Integer.parseInt(results[1]);
-
-                if ("null".equals(results[2])) {
-                    foundInteractionsMerged = new BooleanAssignment();
+                parsedElapsedTimeInMS = Long.parseLong(results[0]);
+                parsedVerificationCounter = Integer.parseInt(results[1]);
+                parsedTimeout = Boolean.parseBoolean(results[2]);
+                parsedError = Boolean.parseBoolean(results[3]);
+                parsedInteractionsMerged = InteractionFinderRunner.parseLiteralList(results[4]);
+                parsedInteractionsMergedAndUpdated = InteractionFinderRunner.parseLiteralList(results[5]);
+                if ("null".equals(results[6])) {
+                    parsedInteractions = Collections.emptyList();
                 } else {
-                    foundInteractionsMerged = InteractionFinderRunner.parseLiteralList(results[2]);
-                }
-                if ("null".equals(results[3])) {
-                    foundInteractionsMergedAndUpdated = new BooleanAssignment();
-                } else {
-                    foundInteractionsMergedAndUpdated = InteractionFinderRunner.parseLiteralList(results[3]);
-                }
-                if ("null".equals(results[4])) {
-                    foundInteractions = Collections.emptyList();
-                } else {
-                    foundInteractions = new ArrayList<>(results.length - 4);
-                    for (int i = 4; i < results.length; i++) {
-                        foundInteractions.add(InteractionFinderRunner.parseLiteralList(results[i]));
+                    parsedInteractions = new ArrayList<>(results.length - 6);
+                    for (int i = 6; i < results.length; i++) {
+                        parsedInteractions.add(InteractionFinderRunner.parseLiteralList(results[i]));
                     }
                 }
-                return;
+                return new ProcessResult(
+                        parsedInteractions,
+                        parsedInteractionsMerged,
+                        parsedInteractionsMergedAndUpdated,
+                        parsedElapsedTimeInMS,
+                        parsedVerificationCounter,
+                        parsedTimeout,
+                        parsedError);
             } catch (Exception e) {
                 FeatJAR.log().error(e);
             }
         }
-        elapsedTimeInMS = -1;
-        verificationCounter = -1;
-        foundInteractions = null;
+        return new ProcessResult();
     }
 
     protected void writeRunData(CSVFile dataCSVWriter) {
@@ -361,37 +400,44 @@ public class FindingPhase extends Evaluator {
         dataCSVWriter.add(t);
         dataCSVWriter.add(fpNoise);
         dataCSVWriter.add(fnNoise);
-        dataCSVWriter.add(foundInteractions.size());
+        dataCSVWriter.add(result.foundInteractions.size());
         dataCSVWriter.add(
-                foundInteractions.isEmpty()
+                result.foundInteractions.isEmpty()
                         ? "N"
-                        : foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0)) ? "T" : "F");
+                        : result.foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0))
+                                ? "T"
+                                : "F");
         dataCSVWriter.add(
-                foundInteractions.isEmpty()
+                result.foundInteractions.isEmpty()
                         ? "N"
-                        : faultyInteractionsUpdated.get(0).containsAll(foundInteractionsMergedAndUpdated) ? "T" : "F");
-        dataCSVWriter.add(foundInteractions.isEmpty() ? 0 : foundInteractionsMergedAndUpdated.countNonZero());
+                        : faultyInteractionsUpdated.get(0).containsAll(result.foundInteractionsMergedAndUpdated)
+                                ? "T"
+                                : "F");
         dataCSVWriter.add(
-                foundInteractions.isEmpty()
+                result.foundInteractions.isEmpty() ? 0 : result.foundInteractionsMergedAndUpdated.countNonZero());
+        dataCSVWriter.add(
+                result.foundInteractions.isEmpty()
                         ? -1
                         : faultyInteractionsUpdated
                                 .get(0)
-                                .retainAll(foundInteractionsMergedAndUpdated)
+                                .retainAll(result.foundInteractionsMergedAndUpdated)
                                 .countNonZero());
         dataCSVWriter.add(
-                foundInteractions.isEmpty()
+                result.foundInteractions.isEmpty()
                         ? -1
                         : faultyInteractionsUpdated
                                 .get(0)
-                                .removeAll(foundInteractionsMergedAndUpdated)
+                                .removeAll(result.foundInteractionsMergedAndUpdated)
                                 .countNonZero());
         dataCSVWriter.add(
-                foundInteractions.isEmpty()
+                result.foundInteractions.isEmpty()
                         ? -1
-                        : foundInteractionsMergedAndUpdated
+                        : result.foundInteractionsMergedAndUpdated
                                 .removeAll(faultyInteractionsUpdated.get(0))
                                 .countNonZero());
-        dataCSVWriter.add(verificationCounter);
-        dataCSVWriter.add(elapsedTimeInMS);
+        dataCSVWriter.add(result.verificationCounter);
+        dataCSVWriter.add(result.elapsedTimeInMS);
+        dataCSVWriter.add(result.timeoutOccured);
+        dataCSVWriter.add(result.errorOccured);
     }
 }

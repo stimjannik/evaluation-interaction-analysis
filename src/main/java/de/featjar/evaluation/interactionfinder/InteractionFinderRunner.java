@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -55,6 +56,7 @@ public class InteractionFinderRunner {
 
         private List<BooleanAssignment> foundInteractions;
         private long elapsedTimeInMS = -1;
+        private Exception error = null;
 
         private IncInteractionFinder algorithm;
         private int t;
@@ -64,7 +66,11 @@ public class InteractionFinderRunner {
         @Override
         public void run() {
             long startTime = System.nanoTime();
-            foundInteractions = algorithm.find(t);
+            try {
+                foundInteractions = algorithm.find(t);
+            } catch (Exception e) {
+                error = e;
+            }
             long endTime = System.nanoTime();
             elapsedTimeInMS = (endTime - startTime) / 1_000_000;
             synchronized (this) {
@@ -119,27 +125,34 @@ public class InteractionFinderRunner {
                 thread.join(timeout);
             } catch (InterruptedException e) {
             }
+            List<BooleanAssignment> interactions = new ArrayList<>();
             if (thread.isFinished()) {
-                BooleanAssignment foundInteractionsMerged, foundInteractionsMergedAndUpdated;
                 if (thread.foundInteractions != null) {
-                    foundInteractionsMerged = new BooleanAssignment(IntegerList.merge(thread.foundInteractions));
-                    foundInteractionsMergedAndUpdated = Computations.of(cnf)
+                    interactions.addAll(thread.foundInteractions);
+                    BooleanAssignment foundInteractionsMerged =
+                            new BooleanAssignment(IntegerList.merge(thread.foundInteractions));
+                    interactions.add(foundInteractionsMerged);
+                    interactions.add(Computations.of(cnf)
                             .map(ComputeCoreDeadVariablesSAT4J::new)
                             .set(ComputeCoreDeadVariablesSAT4J.ASSUMED_ASSIGNMENT, foundInteractionsMerged)
-                            .compute();
+                            .compute());
                 } else {
-                    foundInteractionsMerged = null;
-                    foundInteractionsMergedAndUpdated = null;
+                    interactions.add(null);
+                    interactions.add(null);
+                    interactions.add(null);
                 }
                 writeResults(
                         outputPath,
                         thread.algorithm.getVerifyCounter(),
                         thread.elapsedTimeInMS,
-                        thread.foundInteractions,
-                        foundInteractionsMerged,
-                        foundInteractionsMergedAndUpdated);
+                        false,
+                        thread.error != null,
+                        interactions);
             } else {
-                writeResults(outputPath, -1, -1, null, null, null);
+                interactions.add(null);
+                interactions.add(null);
+                interactions.add(null);
+                writeResults(outputPath, -1, -1, true, false, interactions);
             }
             if (standalone) {
                 System.exit(0);
@@ -156,36 +169,28 @@ public class InteractionFinderRunner {
             Path outputPath,
             int verifyCounter,
             long elapsedTimeInMS,
-            List<BooleanAssignment> foundInteractions,
-            BooleanAssignment foundInteractionsMerged,
-            BooleanAssignment foundInteractionsMergedAndUpdated)
+            boolean timeout,
+            boolean error,
+            List<BooleanAssignment> interactions)
             throws IOException {
         StringBuilder sb = new StringBuilder();
-        sb.append(elapsedTimeInMS);
-        sb.append("\n");
-        sb.append(verifyCounter);
-        sb.append("\n");
-        if (foundInteractionsMerged != null) {
-            writeAssignment(sb, foundInteractionsMerged);
-        } else {
-            sb.append("null\n");
-        }
-        if (foundInteractionsMergedAndUpdated != null) {
-            writeAssignment(sb, foundInteractionsMergedAndUpdated);
-        } else {
-            sb.append("null\n");
-        }
-        if (foundInteractions != null) {
-            for (BooleanAssignment foundInteraction : foundInteractions) {
+        write(elapsedTimeInMS, sb);
+        write(verifyCounter, sb);
+        write(timeout, sb);
+        write(error, sb);
+        for (BooleanAssignment foundInteraction : interactions) {
+            if (foundInteraction == null) {
+                write(null, sb);
+            } else {
                 writeAssignment(sb, foundInteraction);
             }
-            if (!foundInteractions.isEmpty()) {
-                sb.delete(sb.length() - 1, sb.length());
-            }
-        } else {
-            sb.append("null");
         }
         Files.writeString(outputPath, sb.toString());
+    }
+
+    private static void write(Object object, StringBuilder sb) {
+        sb.append(String.valueOf(object));
+        sb.append("\n");
     }
 
     private static void writeAssignment(StringBuilder sb, BooleanAssignment foundInteraction) {
@@ -210,7 +215,7 @@ public class InteractionFinderRunner {
 
     public static BooleanClause parseLiteralList(String arg) {
         return ("null".equals(arg))
-                ? null
+                ? new BooleanClause()
                 : new BooleanClause(Arrays.stream(arg.split(";"))
                         .mapToInt(Integer::parseInt)
                         .toArray());

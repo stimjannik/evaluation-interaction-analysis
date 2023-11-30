@@ -80,21 +80,17 @@ public class CreateInteractionsPhase extends Evaluator {
                     "ModelID", "ModelIt", "Source", "InteractionCount", "InteractionSize", "InteractionID");
             interactionsCSV.flush();
             randomSeed = getOption(Evaluator.randomSeed);
-            loopOverOptions(
-                    this::optionLoop,
-                    systemsOption,
-                    systemIterationsOption,
-                    interactionCountOption,
-                    interactionSizeOption);
+            optionCombiner.init(systemsOption, systemIterationsOption, interactionCountOption, interactionSizeOption);
+            optionCombiner.loopOverOptions(this::optionLoop);
         } catch (IOException e) {
             FeatJAR.log().error(e);
         }
     }
 
-    public void optionLoop(int lastChanged) {
+    private void optionLoop(int lastChanged) {
         switch (lastChanged) {
             case 0: {
-                modelName = cast(0);
+                modelName = optionCombiner.getValue(0);
                 modelID = systemNames.indexOf(modelName);
                 Result<BooleanAssignmentSpace> load = IO.load(
                         genPath.resolve(modelName).resolve("cnf.dimacs"), new BooleanAssignmentSpaceDimacsFormat());
@@ -116,7 +112,7 @@ public class CreateInteractionsPhase extends Evaluator {
                 interactionID = 0;
             }
             case 1:
-                modelIteration = cast(1);
+                modelIteration = optionCombiner.getValue(1);
                 BooleanSolution solution = Computations.of(cnf)
                         .map(ComputeSolutionSAT4J::new)
                         .set(ComputeSolutionSAT4J.RANDOM_SEED, randomSeed + modelIteration)
@@ -152,9 +148,9 @@ public class CreateInteractionsPhase extends Evaluator {
                     FeatJAR.log().error(e);
                 }
             case 2:
-                interactionCount = cast(2);
+                interactionCount = optionCombiner.getValue(2);
             case 3:
-                interactionSize = cast(3);
+                interactionSize = optionCombiner.getValue(3);
                 ArrayList<BooleanAssignment> interactions = new ArrayList<>(interactionCount);
                 ArrayList<BooleanAssignment> updatedInteractions = new ArrayList<>(interactionCount);
                 for (int i = 0; i < interactionCount; i++) {
