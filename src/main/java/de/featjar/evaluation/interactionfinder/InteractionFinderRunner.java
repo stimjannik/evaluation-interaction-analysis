@@ -90,7 +90,7 @@ public class InteractionFinderRunner {
         try {
             if (standalone) {
                 final Configuration configuration = new Configuration();
-                configuration.logConfig.logAtMost(Log.Verbosity.ERROR);
+                configuration.logConfig.logToSystemErr(Log.Verbosity.ERROR).logToSystemOut(Log.Verbosity.MESSAGE);
                 configuration.cacheConfig.setCachePolicy(Cache.CachePolicy.CACHE_NONE);
                 FeatJAR.initialize(configuration);
             }

@@ -185,7 +185,7 @@ public class FindingPhase extends Evaluator {
                 t = optionCombiner.getValue(4);
                 algorithmID++;
                 if (algorithmCSV != null) {
-                    writeCSV(algorithmCSV, w -> {
+                    CSVFile.writeCSV(algorithmCSV, w -> {
                         w.add(algorithmID);
                         w.add(algorithmName);
                         w.add(t);
@@ -254,7 +254,7 @@ public class FindingPhase extends Evaluator {
                                             "uint_found_%s_%d_%d_%s.dimacs",
                                             algorithmName, t, algorithmIteration, interactionID)),
                             new BooleanAssignmentSpaceDimacsFormat());
-                    writeCSV(dataCSV, this::writeRunData);
+                    CSVFile.writeCSV(dataCSV, this::writeRunData);
                 } catch (IOException e) {
                     FeatJAR.log().error(e);
                 }
@@ -270,7 +270,7 @@ public class FindingPhase extends Evaluator {
             String corePathString,
             String outputPath) {
         final Path output = Path.of(outputPath);
-        Result<Long> timeout = optionParser.get(Evaluator.timeout);
+        Result<Long> timeout = optionParser.getResult(Evaluator.timeout);
 
         ArrayList<String> args = new ArrayList<>(Arrays.asList(
                 modelPathString, // + core

@@ -134,7 +134,7 @@ public class PrepareFeatureModelPhase extends Evaluator {
                         new BooleanAssignmentSpace(atomicFreeVariables, List.of(List.of(core))),
                         genPath.resolve(modelName).resolve("core.dimacs"),
                         new BooleanAssignmentSpaceDimacsFormat());
-                writeCSV(modelCSV, w -> {
+                CSVFile.writeCSV(modelCSV, w -> {
                     w.add(modelID);
                     w.add(modelName);
                     w.add(variables.getVariableCount());

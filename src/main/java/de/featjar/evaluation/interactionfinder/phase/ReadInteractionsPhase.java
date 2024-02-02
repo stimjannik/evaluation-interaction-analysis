@@ -148,7 +148,7 @@ public class ReadInteractionsPhase extends Evaluator {
                                         .resolve("interactions")
                                         .resolve(String.format("uint_r%d_rs%d.dimacs", modelIteration, modelIteration)),
                                 new BooleanAssignmentSpaceDimacsFormat());
-                        writeCSV(interactionsCSV, w -> {
+                        CSVFile.writeCSV(interactionsCSV, w -> {
                             w.add(modelID);
                             w.add(modelIteration);
                             w.add("r");
