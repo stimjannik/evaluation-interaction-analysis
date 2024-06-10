@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 FeatJAR-Development-Team
+ * Copyright (C) 2024 FeatJAR-Development-Team
  *
  * This file is part of FeatJAR-evaluation-interaction-analysis.
  *
@@ -29,12 +29,12 @@ import de.featjar.base.io.csv.CSVFile;
 import de.featjar.evaluation.Evaluator;
 import de.featjar.evaluation.interactionfinder.InteractionFinderRunner;
 import de.featjar.evaluation.util.ProgressTracker;
-import de.featjar.formula.analysis.VariableMap;
-import de.featjar.formula.analysis.bool.ABooleanAssignment;
-import de.featjar.formula.analysis.bool.BooleanAssignment;
-import de.featjar.formula.analysis.bool.BooleanAssignmentSpace;
-import de.featjar.formula.analysis.bool.BooleanClause;
-import de.featjar.formula.io.dimacs.BooleanAssignmentSpaceDimacsFormat;
+import de.featjar.formula.VariableMap;
+import de.featjar.formula.assignment.ABooleanAssignment;
+import de.featjar.formula.assignment.BooleanAssignment;
+import de.featjar.formula.assignment.BooleanAssignmentGroups;
+import de.featjar.formula.assignment.BooleanClause;
+import de.featjar.formula.io.dimacs.BooleanAssignmentGroupsDimacsFormat;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -163,12 +163,12 @@ public class FindingPhase extends Evaluator {
             case 0:
                 modelName = optionCombiner.getValue(0);
                 modelID = systemNames.indexOf(modelName);
-                Result<BooleanAssignmentSpace> load = IO.load(
-                        genPath.resolve(modelName).resolve("cnf.dimacs"), new BooleanAssignmentSpaceDimacsFormat());
+                Result<BooleanAssignmentGroups> load = IO.load(
+                        genPath.resolve(modelName).resolve("cnf.dimacs"), new BooleanAssignmentGroupsDimacsFormat());
                 if (load.isEmpty()) {
                     FeatJAR.log().problems(load.getProblems());
                 } else {
-                    BooleanAssignmentSpace space = load.get();
+                    BooleanAssignmentGroups space = load.get();
                     variables = space.getVariableMap();
                 }
             case 1:
@@ -227,7 +227,8 @@ public class FindingPhase extends Evaluator {
                 String corePathString = outPath.resolve("core.dimacs").toString();
                 String outputPath = tempPath.resolve("result.txt").toString();
 
-                BooleanAssignmentSpace interaction = IO.load(interactionFile, new BooleanAssignmentSpaceDimacsFormat())
+                BooleanAssignmentGroups interaction = IO.load(
+                                interactionFile, new BooleanAssignmentGroupsDimacsFormat())
                         .orElseThrow();
                 faultyInteractionsUpdated = interaction.toClauseList(0).getAll();
 
@@ -236,15 +237,15 @@ public class FindingPhase extends Evaluator {
 
                 try {
                     IO.save(
-                            new BooleanAssignmentSpace(variables, List.of(result.foundInteractions)),
+                            new BooleanAssignmentGroups(variables, List.of(result.foundInteractions)),
                             genPath.resolve(modelName)
                                     .resolve("found")
                                     .resolve(String.format(
                                             "int_found_%s_%d_%d_%s.dimacs",
                                             algorithmName, t, algorithmIteration, interactionID)),
-                            new BooleanAssignmentSpaceDimacsFormat());
+                            new BooleanAssignmentGroupsDimacsFormat());
                     IO.save(
-                            new BooleanAssignmentSpace(
+                            new BooleanAssignmentGroups(
                                     variables,
                                     List.of(List.of(
                                             result.foundInteractionsMerged, result.foundInteractionsMergedAndUpdated))),
@@ -253,7 +254,7 @@ public class FindingPhase extends Evaluator {
                                     .resolve(String.format(
                                             "uint_found_%s_%d_%d_%s.dimacs",
                                             algorithmName, t, algorithmIteration, interactionID)),
-                            new BooleanAssignmentSpaceDimacsFormat());
+                            new BooleanAssignmentGroupsDimacsFormat());
                     CSVFile.writeCSV(dataCSV, this::writeRunData);
                 } catch (IOException e) {
                     FeatJAR.log().error(e);

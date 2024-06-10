@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 FeatJAR-Development-Team
+ * Copyright (C) 2024 FeatJAR-Development-Team
  *
  * This file is part of FeatJAR-evaluation-interaction-analysis.
  *
@@ -20,23 +20,22 @@
  */
 package de.featjar.evaluation.interactionfinder;
 
+import de.featjar.analysis.sat4j.computation.ComputeCoreSAT4J;
+import de.featjar.analysis.sat4j.computation.RandomConfigurationUpdater;
 import de.featjar.base.FeatJAR;
-import de.featjar.base.FeatJAR.Configuration;
 import de.featjar.base.computation.Cache;
 import de.featjar.base.computation.Computations;
 import de.featjar.base.data.IntegerList;
 import de.featjar.base.io.IO;
 import de.featjar.base.log.Log;
-import de.featjar.formula.analysis.bool.ABooleanAssignment;
-import de.featjar.formula.analysis.bool.BooleanAssignment;
-import de.featjar.formula.analysis.bool.BooleanAssignmentSpace;
-import de.featjar.formula.analysis.bool.BooleanClause;
-import de.featjar.formula.analysis.bool.BooleanClauseList;
-import de.featjar.formula.analysis.combinations.IncInteractionFinder;
-import de.featjar.formula.analysis.sat4j.ComputeCoreDeadVariablesSAT4J;
-import de.featjar.formula.analysis.sat4j.RandomConfigurationUpdater;
-import de.featjar.formula.io.csv.BooleanAssignmentSpaceCSVFormat;
-import de.featjar.formula.io.dimacs.BooleanAssignmentSpaceDimacsFormat;
+import de.featjar.formula.assignment.ABooleanAssignment;
+import de.featjar.formula.assignment.BooleanAssignment;
+import de.featjar.formula.assignment.BooleanAssignmentGroups;
+import de.featjar.formula.assignment.BooleanClause;
+import de.featjar.formula.assignment.BooleanClauseList;
+import de.featjar.formula.computation.IncInteractionFinder;
+import de.featjar.formula.io.csv.BooleanAssignmentGroupsCSVFormat;
+import de.featjar.formula.io.dimacs.BooleanAssignmentGroupsDimacsFormat;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -89,19 +88,20 @@ public class InteractionFinderRunner {
         boolean standalone = !FeatJAR.isInitialized();
         try {
             if (standalone) {
-                final Configuration configuration = new Configuration();
-                configuration.logConfig.logToSystemErr(Log.Verbosity.ERROR).logToSystemOut(Log.Verbosity.MESSAGE);
-                configuration.cacheConfig.setCachePolicy(Cache.CachePolicy.CACHE_NONE);
-                FeatJAR.initialize(configuration);
+                FeatJAR.configure()
+                        .log(c -> c.logToSystemOut(Log.Verbosity.MESSAGE))
+                        .log(c -> c.logToSystemErr(Log.Verbosity.ERROR))
+                        .cache(c -> c.setCachePolicy(Cache.CachePolicy.CACHE_NONE))
+                        .initialize();
             }
 
             FinderThread thread = new FinderThread();
 
-            BooleanAssignmentSpace model = loadDimacs(args[0]);
+            BooleanAssignmentGroups model = loadDimacs(args[0]);
             BooleanClauseList cnf = model.toClauseList();
-            BooleanAssignmentSpace core = loadDimacs(args[1]);
-            BooleanAssignmentSpace sample = loadDimacs(args[2]);
-            BooleanAssignmentSpace interaction = loadDimacs(args[3]);
+            BooleanAssignmentGroups core = loadDimacs(args[1]);
+            BooleanAssignmentGroups sample = loadDimacs(args[2]);
+            BooleanAssignmentGroups interaction = loadDimacs(args[3]);
             Path outputPath = Paths.get(args[4]);
 
             thread.algorithm = parseAlgorithm(args[5]);
@@ -133,8 +133,8 @@ public class InteractionFinderRunner {
                             new BooleanAssignment(IntegerList.merge(thread.foundInteractions));
                     interactions.add(foundInteractionsMerged);
                     interactions.add(Computations.of(cnf)
-                            .map(ComputeCoreDeadVariablesSAT4J::new)
-                            .set(ComputeCoreDeadVariablesSAT4J.ASSUMED_ASSIGNMENT, foundInteractionsMerged)
+                            .map(ComputeCoreSAT4J::new)
+                            .set(ComputeCoreSAT4J.ASSUMED_ASSIGNMENT, foundInteractionsMerged)
                             .compute());
                 } else {
                     interactions.add(null);
@@ -201,12 +201,12 @@ public class InteractionFinderRunner {
         sb.replace(sb.length() - 1, sb.length(), "\n");
     }
 
-    private static BooleanAssignmentSpace loadDimacs(String path) {
+    private static BooleanAssignmentGroups loadDimacs(String path) {
         if (path.endsWith(".csv")) {
-            return IO.load(Paths.get(path), new BooleanAssignmentSpaceCSVFormat())
+            return IO.load(Paths.get(path), new BooleanAssignmentGroupsCSVFormat())
                     .orElseThrow();
         } else if (path.endsWith(".dimacs")) {
-            return IO.load(Paths.get(path), new BooleanAssignmentSpaceDimacsFormat())
+            return IO.load(Paths.get(path), new BooleanAssignmentGroupsDimacsFormat())
                     .orElseThrow();
         } else {
             throw new RuntimeException("Unkown file format");

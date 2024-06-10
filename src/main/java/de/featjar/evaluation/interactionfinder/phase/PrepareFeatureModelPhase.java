@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 FeatJAR-Development-Team
+ * Copyright (C) 2024 FeatJAR-Development-Team
  *
  * This file is part of FeatJAR-evaluation-interaction-analysis.
  *
@@ -20,6 +20,7 @@
  */
 package de.featjar.evaluation.interactionfinder.phase;
 
+import de.featjar.analysis.sat4j.computation.ComputeCoreSAT4J;
 import de.featjar.base.FeatJAR;
 import de.featjar.base.computation.Computations;
 import de.featjar.base.data.Result;
@@ -27,17 +28,16 @@ import de.featjar.base.io.IO;
 import de.featjar.base.io.csv.CSVFile;
 import de.featjar.evaluation.Evaluator;
 import de.featjar.evaluation.util.ModelReader;
-import de.featjar.formula.analysis.VariableMap;
-import de.featjar.formula.analysis.bool.ABooleanAssignment;
-import de.featjar.formula.analysis.bool.BooleanAssignment;
-import de.featjar.formula.analysis.bool.BooleanAssignmentSpace;
-import de.featjar.formula.analysis.bool.BooleanClause;
-import de.featjar.formula.analysis.bool.BooleanClauseList;
-import de.featjar.formula.analysis.bool.IBooleanRepresentation;
-import de.featjar.formula.analysis.mig.ComputeCoreDead;
+import de.featjar.formula.VariableMap;
+import de.featjar.formula.assignment.ABooleanAssignment;
+import de.featjar.formula.assignment.BooleanAssignment;
+import de.featjar.formula.assignment.BooleanAssignmentGroups;
+import de.featjar.formula.assignment.BooleanClause;
+import de.featjar.formula.assignment.BooleanClauseList;
+import de.featjar.formula.assignment.IBooleanRepresentation;
 import de.featjar.formula.io.FormulaFormats;
-import de.featjar.formula.io.dimacs.BooleanAssignmentSpaceDimacsFormat;
-import de.featjar.formula.structure.formula.IFormula;
+import de.featjar.formula.io.dimacs.BooleanAssignmentGroupsDimacsFormat;
+import de.featjar.formula.structure.IFormula;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -83,9 +83,9 @@ public class PrepareFeatureModelPhase extends Evaluator {
             //            Iterator<BooleanAssignment> iterator = atomic.getAll().iterator();
             //            BooleanAssignment core = iterator.next();
             BooleanAssignment core =
-                    Computations.of(cnf).map(ComputeCoreDead::new).compute();
+                    Computations.of(cnf).map(ComputeCoreSAT4J::new).compute();
 
-            VariableMap atomicFreeVariables = new VariableMap(variables);
+            VariableMap atomicFreeVariables = variables.clone();
             List<int[]> atomicFreeClauseLiterals = new ArrayList<>();
             for (BooleanClause clause : cnf.getAll()) {
                 atomicFreeClauseLiterals.add(clause.copy());
@@ -127,13 +127,13 @@ public class PrepareFeatureModelPhase extends Evaluator {
             // save fm and core
             try {
                 IO.save(
-                        new BooleanAssignmentSpace(atomicFreeVariables, List.of(atomicFreeClauses)),
+                        new BooleanAssignmentGroups(atomicFreeVariables, List.of(atomicFreeClauses)),
                         genPath.resolve(modelName).resolve("cnf.dimacs"),
-                        new BooleanAssignmentSpaceDimacsFormat());
+                        new BooleanAssignmentGroupsDimacsFormat());
                 IO.save(
-                        new BooleanAssignmentSpace(atomicFreeVariables, List.of(List.of(core))),
+                        new BooleanAssignmentGroups(atomicFreeVariables, List.of(List.of(core))),
                         genPath.resolve(modelName).resolve("core.dimacs"),
-                        new BooleanAssignmentSpaceDimacsFormat());
+                        new BooleanAssignmentGroupsDimacsFormat());
                 CSVFile.writeCSV(modelCSV, w -> {
                     w.add(modelID);
                     w.add(modelName);

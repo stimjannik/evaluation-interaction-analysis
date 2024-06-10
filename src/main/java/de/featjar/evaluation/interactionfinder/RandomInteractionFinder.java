@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 FeatJAR-Development-Team
+ * Copyright (C) 2024 FeatJAR-Development-Team
  *
  * This file is part of FeatJAR-evaluation-interaction-analysis.
  *
@@ -21,9 +21,9 @@
 package de.featjar.evaluation.interactionfinder;
 
 import de.featjar.base.data.IntegerList;
-import de.featjar.formula.analysis.bool.BooleanAssignment;
-import de.featjar.formula.analysis.bool.BooleanSolution;
-import de.featjar.formula.analysis.combinations.IncInteractionFinder;
+import de.featjar.formula.assignment.BooleanAssignment;
+import de.featjar.formula.assignment.BooleanSolution;
+import de.featjar.formula.computation.IncInteractionFinder;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;

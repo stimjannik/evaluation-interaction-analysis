@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 FeatJAR-Development-Team
+ * Copyright (C) 2024 FeatJAR-Development-Team
  *
  * This file is part of FeatJAR-evaluation-interaction-analysis.
  *
@@ -20,32 +20,30 @@
  */
 package de.featjar.evaluation.interactionfinder.phase;
 
+import de.featjar.analysis.sat4j.computation.ComputeCoreSAT4J;
+import de.featjar.analysis.sat4j.computation.ComputeSolutionSAT4J;
 import de.featjar.base.FeatJAR;
 import de.featjar.base.computation.Computations;
-import de.featjar.base.data.Pair;
 import de.featjar.base.data.Result;
 import de.featjar.base.io.IO;
 import de.featjar.base.io.csv.CSVFile;
 import de.featjar.evaluation.Evaluator;
-import de.featjar.formula.analysis.VariableMap;
-import de.featjar.formula.analysis.bool.BooleanAssignment;
-import de.featjar.formula.analysis.bool.BooleanAssignmentSpace;
-import de.featjar.formula.analysis.bool.BooleanClause;
-import de.featjar.formula.analysis.bool.BooleanClauseList;
-import de.featjar.formula.analysis.bool.BooleanRepresentationComputation;
-import de.featjar.formula.analysis.bool.BooleanSolution;
-import de.featjar.formula.analysis.bool.IBooleanRepresentation;
-import de.featjar.formula.analysis.sat4j.ComputeCoreDeadVariablesSAT4J;
-import de.featjar.formula.analysis.sat4j.ComputeSolutionSAT4J;
-import de.featjar.formula.io.csv.BooleanAssignmentSpaceCSVFormat;
-import de.featjar.formula.io.dimacs.BooleanAssignmentSpaceDimacsFormat;
+import de.featjar.formula.VariableMap;
+import de.featjar.formula.assignment.BooleanAssignment;
+import de.featjar.formula.assignment.BooleanAssignmentGroups;
+import de.featjar.formula.assignment.BooleanClause;
+import de.featjar.formula.assignment.BooleanClauseList;
+import de.featjar.formula.assignment.BooleanSolution;
+import de.featjar.formula.assignment.ComputeBooleanRepresentation;
+import de.featjar.formula.computation.ComputeCNFFormula;
+import de.featjar.formula.computation.ComputeDNFFormula;
+import de.featjar.formula.computation.ComputeNNFFormula;
+import de.featjar.formula.io.csv.BooleanAssignmentGroupsCSVFormat;
+import de.featjar.formula.io.dimacs.BooleanAssignmentGroupsDimacsFormat;
 import de.featjar.formula.io.textual.ExpressionParser;
 import de.featjar.formula.io.textual.ExpressionParser.ErrorHandling;
-import de.featjar.formula.io.textual.Symbols;
-import de.featjar.formula.structure.formula.IFormula;
-import de.featjar.formula.transformer.ComputeCNFFormula;
-import de.featjar.formula.transformer.ComputeDNFFormula;
-import de.featjar.formula.transformer.ComputeNNFFormula;
+import de.featjar.formula.io.textual.JavaSymbols;
+import de.featjar.formula.structure.IFormula;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -53,7 +51,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * @author Sebastian Krieter
+ * @author Sebastian KrieterComputeCoreDeadVariablesSAT4J
  */
 public class ReadInteractionsPhase extends Evaluator {
 
@@ -71,7 +69,7 @@ public class ReadInteractionsPhase extends Evaluator {
             Long randomSeed = getOption(Evaluator.randomSeed);
 
             final ExpressionParser nodeReader = new ExpressionParser();
-            nodeReader.setSymbols(Symbols.JAVA);
+            nodeReader.setSymbols(JavaSymbols.INSTANCE);
             nodeReader.setIgnoreMissingFeatures(ErrorHandling.REMOVE);
 
             final Path p = resourcePath.resolve("bug_list.csv");
@@ -84,13 +82,14 @@ public class ReadInteractionsPhase extends Evaluator {
                     final String[] values = line.split(";");
                     final String modelName = values[0];
                     modelID = systemNames.indexOf(modelName);
-                    Result<BooleanAssignmentSpace> load = IO.load(
-                            genPath.resolve(modelName).resolve("cnf.dimacs"), new BooleanAssignmentSpaceDimacsFormat());
+                    Result<BooleanAssignmentGroups> load = IO.load(
+                            genPath.resolve(modelName).resolve("cnf.dimacs"),
+                            new BooleanAssignmentGroupsDimacsFormat());
                     if (load.isEmpty()) {
                         FeatJAR.log().problems(load.getProblems());
                         return;
                     }
-                    BooleanAssignmentSpace space = load.get();
+                    BooleanAssignmentGroups space = load.get();
                     VariableMap variables = space.getVariableMap();
                     BooleanClauseList cnf =
                             new BooleanClauseList(space.getGroups().get(0), variables.getVariableCount());
@@ -99,17 +98,19 @@ public class ReadInteractionsPhase extends Evaluator {
                     final IFormula formula =
                             (IFormula) nodeReader.parse(formulaString).orElseThrow();
                     ComputeNNFFormula nnf = Computations.of(formula).map(ComputeNNFFormula::new);
-                    Pair<IBooleanRepresentation, VariableMap> pcDnfRep = nnf.map(ComputeDNFFormula::new)
-                            .map(BooleanRepresentationComputation::new)
+                    BooleanAssignmentGroups pcDnfRep = nnf.map(ComputeDNFFormula::new)
+                            .map(ComputeBooleanRepresentation::new)
                             .compute();
-                    Pair<IBooleanRepresentation, VariableMap> pcCnfRep = nnf.map(ComputeCNFFormula::new)
-                            .map(BooleanRepresentationComputation::new)
+                    BooleanAssignmentGroups pcCnfRep = nnf.map(ComputeCNFFormula::new)
+                            .map(ComputeBooleanRepresentation::new)
                             .compute();
 
-                    BooleanClauseList pcCnf =
-                            ((BooleanClauseList) pcCnfRep.getKey()).adapt(pcCnfRep.getValue(), variables);
-                    BooleanClauseList pcDnf =
-                            ((BooleanClauseList) pcDnfRep.getKey()).adapt(pcDnfRep.getValue(), variables);
+                    BooleanClauseList pcCnf = ((BooleanClauseList)
+                                    pcCnfRep.getGroups().get(0))
+                            .adapt(pcCnfRep.getVariableMap(), variables);
+                    BooleanClauseList pcDnf = ((BooleanClauseList)
+                                    pcDnfRep.getGroups().get(0))
+                            .adapt(pcDnfRep.getVariableMap(), variables);
                     Result<BooleanSolution> computeResult = Computations.of(cnf)
                             .map(ComputeSolutionSAT4J::new)
                             .set(ComputeSolutionSAT4J.RANDOM_SEED, randomSeed + modelIteration)
@@ -121,33 +122,33 @@ public class ReadInteractionsPhase extends Evaluator {
                         BooleanSolution solution = computeResult.orElse(null);
                         FeatJAR.log().debug(pcDnf);
                         IO.save(
-                                new BooleanAssignmentSpace(variables, List.of(List.of(solution))),
+                                new BooleanAssignmentGroups(variables, List.of(List.of(solution))),
                                 genPath.resolve(modelName)
                                         .resolve("samples")
                                         .resolve(String.format("sol_rs%d.csv", modelIteration)),
-                                new BooleanAssignmentSpaceCSVFormat());
+                                new BooleanAssignmentGroupsCSVFormat());
                         interactionCount = pcDnf.size();
                         interactionSize =
                                 pcDnf.stream().mapToInt(c -> c.size()).max().getAsInt();
                         ArrayList<BooleanAssignment> updatedInteractions = new ArrayList<>(interactionCount);
                         for (BooleanClause clause : pcDnf.getAll()) {
                             updatedInteractions.add(Computations.of(cnf)
-                                    .map(ComputeCoreDeadVariablesSAT4J::new)
-                                    .set(ComputeCoreDeadVariablesSAT4J.ASSUMED_ASSIGNMENT, clause)
+                                    .map(ComputeCoreSAT4J::new)
+                                    .set(ComputeCoreSAT4J.ASSUMED_ASSIGNMENT, clause)
                                     .compute());
                         }
                         IO.save(
-                                new BooleanAssignmentSpace(variables, List.of(pcDnf.getAll())),
+                                new BooleanAssignmentGroups(variables, List.of(pcDnf.getAll())),
                                 genPath.resolve(modelName)
                                         .resolve("interactions")
                                         .resolve(String.format("int_r%d_rs%d.dimacs", modelIteration, modelIteration)),
-                                new BooleanAssignmentSpaceDimacsFormat());
+                                new BooleanAssignmentGroupsDimacsFormat());
                         IO.save(
-                                new BooleanAssignmentSpace(variables, List.of(updatedInteractions)),
+                                new BooleanAssignmentGroups(variables, List.of(updatedInteractions)),
                                 genPath.resolve(modelName)
                                         .resolve("interactions")
                                         .resolve(String.format("uint_r%d_rs%d.dimacs", modelIteration, modelIteration)),
-                                new BooleanAssignmentSpaceDimacsFormat());
+                                new BooleanAssignmentGroupsDimacsFormat());
                         CSVFile.writeCSV(interactionsCSV, w -> {
                             w.add(modelID);
                             w.add(modelIteration);

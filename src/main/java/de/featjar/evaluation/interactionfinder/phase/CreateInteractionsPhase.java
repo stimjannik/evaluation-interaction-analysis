@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 FeatJAR-Development-Team
+ * Copyright (C) 2024 FeatJAR-Development-Team
  *
  * This file is part of FeatJAR-evaluation-interaction-analysis.
  *
@@ -20,6 +20,8 @@
  */
 package de.featjar.evaluation.interactionfinder.phase;
 
+import de.featjar.analysis.sat4j.computation.ComputeCoreSAT4J;
+import de.featjar.analysis.sat4j.computation.ComputeSolutionSAT4J;
 import de.featjar.base.FeatJAR;
 import de.featjar.base.cli.ListOption;
 import de.featjar.base.cli.Option;
@@ -28,15 +30,13 @@ import de.featjar.base.data.Result;
 import de.featjar.base.io.IO;
 import de.featjar.base.io.csv.CSVFile;
 import de.featjar.evaluation.Evaluator;
-import de.featjar.formula.analysis.VariableMap;
-import de.featjar.formula.analysis.bool.BooleanAssignment;
-import de.featjar.formula.analysis.bool.BooleanAssignmentSpace;
-import de.featjar.formula.analysis.bool.BooleanClauseList;
-import de.featjar.formula.analysis.bool.BooleanSolution;
-import de.featjar.formula.analysis.sat4j.ComputeCoreDeadVariablesSAT4J;
-import de.featjar.formula.analysis.sat4j.ComputeSolutionSAT4J;
-import de.featjar.formula.io.csv.BooleanAssignmentSpaceCSVFormat;
-import de.featjar.formula.io.dimacs.BooleanAssignmentSpaceDimacsFormat;
+import de.featjar.formula.VariableMap;
+import de.featjar.formula.assignment.BooleanAssignment;
+import de.featjar.formula.assignment.BooleanAssignmentGroups;
+import de.featjar.formula.assignment.BooleanClauseList;
+import de.featjar.formula.assignment.BooleanSolution;
+import de.featjar.formula.io.csv.BooleanAssignmentGroupsCSVFormat;
+import de.featjar.formula.io.dimacs.BooleanAssignmentGroupsDimacsFormat;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -92,21 +92,21 @@ public class CreateInteractionsPhase extends Evaluator {
             case 0: {
                 modelName = optionCombiner.getValue(0);
                 modelID = systemNames.indexOf(modelName);
-                Result<BooleanAssignmentSpace> load = IO.load(
-                        genPath.resolve(modelName).resolve("cnf.dimacs"), new BooleanAssignmentSpaceDimacsFormat());
+                Result<BooleanAssignmentGroups> load = IO.load(
+                        genPath.resolve(modelName).resolve("cnf.dimacs"), new BooleanAssignmentGroupsDimacsFormat());
                 if (load.isEmpty()) {
                     FeatJAR.log().problems(load.getProblems());
                 } else {
-                    BooleanAssignmentSpace space = load.get();
+                    BooleanAssignmentGroups space = load.get();
                     variables = space.getVariableMap();
                     cnf = new BooleanClauseList(space.getGroups().get(0), variables.getVariableCount());
                 }
-                Result<BooleanAssignmentSpace> load2 = IO.load(
-                        genPath.resolve(modelName).resolve("core.dimacs"), new BooleanAssignmentSpaceDimacsFormat());
+                Result<BooleanAssignmentGroups> load2 = IO.load(
+                        genPath.resolve(modelName).resolve("core.dimacs"), new BooleanAssignmentGroupsDimacsFormat());
                 if (load2.isEmpty()) {
                     FeatJAR.log().problems(load2.getProblems());
                 } else {
-                    BooleanAssignmentSpace space = load2.get();
+                    BooleanAssignmentGroups space = load2.get();
                     core = space.getGroups().get(0).get(0).toSolution();
                 }
                 interactionID = 0;
@@ -139,11 +139,11 @@ public class CreateInteractionsPhase extends Evaluator {
                 }
                 try {
                     IO.save(
-                            new BooleanAssignmentSpace(variables, List.of(List.of(solution))),
+                            new BooleanAssignmentGroups(variables, List.of(List.of(solution))),
                             genPath.resolve(modelName)
                                     .resolve("samples")
                                     .resolve(String.format("sol_gs%d.csv", modelIteration)),
-                            new BooleanAssignmentSpaceCSVFormat());
+                            new BooleanAssignmentGroupsCSVFormat());
                 } catch (IOException e) {
                     FeatJAR.log().error(e);
                 }
@@ -158,23 +158,23 @@ public class CreateInteractionsPhase extends Evaluator {
                             new BooleanAssignment(Arrays.copyOf(randomizedLiterals.get(i), interactionSize));
                     interactions.add(e);
                     updatedInteractions.add(Computations.of(cnf)
-                            .map(ComputeCoreDeadVariablesSAT4J::new)
-                            .set(ComputeCoreDeadVariablesSAT4J.ASSUMED_ASSIGNMENT, e)
+                            .map(ComputeCoreSAT4J::new)
+                            .set(ComputeCoreSAT4J.ASSUMED_ASSIGNMENT, e)
                             .compute());
                 }
                 try {
                     IO.save(
-                            new BooleanAssignmentSpace(variables, List.of(interactions)),
+                            new BooleanAssignmentGroups(variables, List.of(interactions)),
                             genPath.resolve(modelName)
                                     .resolve("interactions")
                                     .resolve(String.format("int_g%d_gs%d.dimacs", interactionID, modelIteration)),
-                            new BooleanAssignmentSpaceDimacsFormat());
+                            new BooleanAssignmentGroupsDimacsFormat());
                     IO.save(
-                            new BooleanAssignmentSpace(variables, List.of(updatedInteractions)),
+                            new BooleanAssignmentGroups(variables, List.of(updatedInteractions)),
                             genPath.resolve(modelName)
                                     .resolve("interactions")
                                     .resolve(String.format("uint_g%d_gs%d.dimacs", interactionID, modelIteration)),
-                            new BooleanAssignmentSpaceDimacsFormat());
+                            new BooleanAssignmentGroupsDimacsFormat());
                     CSVFile.writeCSV(interactionsCSV, w -> {
                         w.add(modelID);
                         w.add(modelIteration);

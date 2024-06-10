@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 FeatJAR-Development-Team
+ * Copyright (C) 2024 FeatJAR-Development-Team
  *
  * This file is part of FeatJAR-evaluation-interaction-analysis.
  *
@@ -20,14 +20,14 @@
  */
 package de.featjar.evaluation.interactionfinder;
 
-import de.featjar.formula.analysis.bool.ABooleanAssignment;
-import de.featjar.formula.analysis.bool.BooleanSolution;
-import de.featjar.formula.analysis.combinations.ConfigurationVerifyer;
+import de.featjar.analysis.IConfigurationVerifyer;
+import de.featjar.formula.assignment.ABooleanAssignment;
+import de.featjar.formula.assignment.BooleanSolution;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-public class ConfigurationOracle implements ConfigurationVerifyer {
+public class ConfigurationOracle implements IConfigurationVerifyer {
     private final List<? extends ABooleanAssignment> interactions;
     private final double fpNoise, fnNoise;
 
