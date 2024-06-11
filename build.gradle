@@ -14,3 +14,29 @@ license {
         url = 'https://github.com/FeatureIDE/FeatJAR'
     }
 }
+
+task setupConfig(type: Copy) {
+    onlyIf{ !file('config_default').exists() }
+    from zipTree('config_default.zip')
+    into projectDir
+    eachFile {
+        if (it.relativePath.getFile(destinationDir).exists()) {
+            it.exclude()
+        }
+    }
+}
+
+task setupModels(type: Copy) {
+    onlyIf{ !file('models').exists() }
+    from zipTree('models.zip')
+    into  "${projectDir}/models"
+    eachFile {
+        if (it.relativePath.getFile(destinationDir).exists()) {
+            it.exclude()
+        }
+    }
+}
+
+assemble.finalizedBy setupConfig
+assemble.finalizedBy setupModels
+
