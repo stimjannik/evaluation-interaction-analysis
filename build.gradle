@@ -40,3 +40,15 @@ task setupModels(type: Copy) {
 assemble.finalizedBy setupConfig
 assemble.finalizedBy setupModels
 
+tasks.register('archiveResults', Zip) {
+    group = "Application"
+    description = "Creates a zip archive with the latest results directory."
+	def curResults = new File("results/.current").getText().readLines()
+	if (!curResults.isEmpty()) {
+		def curResultDir = curResults[0]
+		println curResultDir
+		archiveFileName = "${curResultDir}.zip"
+    	destinationDirectory = layout.projectDirectory
+    	from layout.projectDirectory.dir("results/${curResultDir}")
+	}
+}
