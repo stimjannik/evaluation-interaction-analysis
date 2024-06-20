@@ -158,7 +158,7 @@ public class FindingPhase extends Evaluator {
         }
     }
 
-    public void optionLoop(int lastChanged) {
+    public boolean optionLoop(int lastChanged) {
         switch (lastChanged) {
             case 0:
                 modelName = optionCombiner.getValue(0);
@@ -167,6 +167,7 @@ public class FindingPhase extends Evaluator {
                         genPath.resolve(modelName).resolve("cnf.dimacs"), new BooleanAssignmentGroupsDimacsFormat());
                 if (load.isEmpty()) {
                     FeatJAR.log().problems(load.getProblems());
+                    return false;
                 } else {
                     BooleanAssignmentGroups space = load.get();
                     variables = space.getVariableMap();
@@ -196,6 +197,7 @@ public class FindingPhase extends Evaluator {
                 processInteractions();
             default:
         }
+        return true;
     }
 
     private void processInteractions() {

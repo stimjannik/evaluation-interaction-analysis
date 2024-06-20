@@ -65,13 +65,14 @@ public class PrepareFeatureModelPhase extends Evaluator {
         }
     }
 
-    public void optionLoop(int lastChanged) {
+    public boolean optionLoop(int lastChanged) {
         // read fm
         String modelName = optionCombiner.getValue(0);
         int modelID = systemNames.indexOf(modelName);
         Result<IFormula> load = modelReader.read(modelName);
         if (load.isEmpty()) {
             FeatJAR.log().problems(load.getProblems());
+            return false;
         } else {
             // get core
             VariableMap variables =
@@ -142,7 +143,9 @@ public class PrepareFeatureModelPhase extends Evaluator {
                 });
             } catch (IOException e) {
                 FeatJAR.log().error(e);
+                return false;
             }
         }
+        return true;
     }
 }
