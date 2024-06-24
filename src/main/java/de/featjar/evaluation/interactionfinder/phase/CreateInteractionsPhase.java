@@ -87,7 +87,7 @@ public class CreateInteractionsPhase extends Evaluator {
         }
     }
 
-    private boolean optionLoop(int lastChanged) {
+    private int optionLoop(int lastChanged) {
         switch (lastChanged) {
             case 0: {
                 modelName = optionCombiner.getValue(0);
@@ -96,7 +96,7 @@ public class CreateInteractionsPhase extends Evaluator {
                         genPath.resolve(modelName).resolve("cnf.dimacs"), new BooleanAssignmentGroupsDimacsFormat());
                 if (load.isEmpty()) {
                     FeatJAR.log().problems(load.getProblems());
-                    return false;
+                    return 0;
                 } else {
                     BooleanAssignmentGroups space = load.get();
                     variables = space.getVariableMap();
@@ -106,7 +106,7 @@ public class CreateInteractionsPhase extends Evaluator {
                         genPath.resolve(modelName).resolve("core.dimacs"), new BooleanAssignmentGroupsDimacsFormat());
                 if (load2.isEmpty()) {
                     FeatJAR.log().problems(load2.getProblems());
-                    return false;
+                    return 0;
                 } else {
                     BooleanAssignmentGroups space = load2.get();
                     core = space.getGroups().get(0).get(0).toSolution();
@@ -148,7 +148,7 @@ public class CreateInteractionsPhase extends Evaluator {
                             new BooleanAssignmentGroupsCSVFormat());
                 } catch (IOException e) {
                     FeatJAR.log().error(e);
-                    return false;
+                    return 1;
                 }
             case 2:
                 interactionCount = optionCombiner.getValue(2);
@@ -189,10 +189,10 @@ public class CreateInteractionsPhase extends Evaluator {
                     interactionID++;
                 } catch (IOException e) {
                     FeatJAR.log().error(e);
-                    return false;
+                    return 3;
                 }
             default:
         }
-        return true;
+        return -1;
     }
 }
