@@ -50,9 +50,9 @@ import java.util.stream.IntStream;
 public class CreateInteractionsPhase extends Evaluator {
 
     public static final ListOption<Integer> interactionSizeOption =
-            new ListOption<>("interactionSize", Option.IntegerParser);
+            Option.newListOption("interactionSize", Option.IntegerParser);
     public static final ListOption<Integer> interactionCountOption =
-            new ListOption<>("interactionCount", Option.IntegerParser);
+            Option.newListOption("interactionCount", Option.IntegerParser);
 
     private BooleanClauseList cnf;
     private BooleanSolution core;
@@ -63,14 +63,6 @@ public class CreateInteractionsPhase extends Evaluator {
     private VariableMap variables;
     private CSVFile interactionsCSV;
     private int interactionID;
-
-    @Override
-    public List<Option<?>> getOptions() {
-        ArrayList<Option<?>> options = new ArrayList<>(super.getOptions());
-        options.add(interactionSizeOption);
-        options.add(interactionCountOption);
-        return options;
-    }
 
     @Override
     public void runEvaluation() {

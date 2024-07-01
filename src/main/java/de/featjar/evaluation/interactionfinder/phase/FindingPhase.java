@@ -55,12 +55,12 @@ import java.util.stream.Stream;
  */
 public class FindingPhase extends Evaluator {
 
-    public static final Option<Integer> memoryOption = new Option<>("memory", Option.IntegerParser, 8);
-    public static final ListOption<Integer> tOption = new ListOption<>("t", Option.IntegerParser);
-    public static final ListOption<Double> fpNoiseOption = new ListOption<>("fpNoise", Option.DoubleParser);
-    public static final ListOption<Double> fnNoiseOption = new ListOption<>("fnNoise", Option.DoubleParser);
-    public static final ListOption<String> algorithmsOption = new ListOption<>("algorithm", Option.StringParser);
-    public static final Option<Boolean> runjarOption = new Option<>("jar", Option.BooleanParser, false);
+    public static final Option<Integer> memoryOption = Option.newOption("memory", Option.IntegerParser, 8);
+    public static final ListOption<Integer> tOption = Option.newListOption("t", Option.IntegerParser);
+    public static final ListOption<Double> fpNoiseOption = Option.newListOption("fpNoise", Option.DoubleParser);
+    public static final ListOption<Double> fnNoiseOption = Option.newListOption("fnNoise", Option.DoubleParser);
+    public static final ListOption<String> algorithmsOption = Option.newListOption("algorithm", Option.StringParser);
+    public static final Option<Boolean> runjarOption = Option.newOption("jar", Option.BooleanParser, false);
 
     private static final Pattern compile = Pattern.compile("uint_([a-z]+\\d+)_([a-z]+\\d+)[.]dimacs");
 
@@ -109,18 +109,6 @@ public class FindingPhase extends Evaluator {
     private int t, modelID, algorithmID, algorithmIteration;
     private double fpNoise, fnNoise;
     private String modelName, algorithmName, interactionID;
-
-    @Override
-    public List<Option<?>> getOptions() {
-        ArrayList<Option<?>> options = new ArrayList<>(super.getOptions());
-        options.add(memoryOption);
-        options.add(tOption);
-        options.add(fpNoiseOption);
-        options.add(fnNoiseOption);
-        options.add(algorithmsOption);
-        options.add(runjarOption);
-        return options;
-    }
 
     @Override
     public void runEvaluation() {
