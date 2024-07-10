@@ -27,7 +27,7 @@ import de.featjar.base.data.Result;
 import de.featjar.base.io.IO;
 import de.featjar.base.io.csv.CSVFile;
 import de.featjar.evaluation.Evaluator;
-import de.featjar.evaluation.util.ModelReader;
+import de.featjar.evaluation.util.FileReader;
 import de.featjar.formula.VariableMap;
 import de.featjar.formula.assignment.ABooleanAssignment;
 import de.featjar.formula.assignment.BooleanAssignment;
@@ -48,7 +48,7 @@ import java.util.stream.Collectors;
  */
 public class PrepareFeatureModelPhase extends Evaluator {
 
-    private ModelReader<IFormula> modelReader;
+    private FileReader<IFormula> modelReader;
     private CSVFile modelCSV;
 
     @Override
@@ -57,7 +57,7 @@ public class PrepareFeatureModelPhase extends Evaluator {
             modelCSV = new CSVFile(csvPath.resolve("model.csv"));
             modelCSV.setHeaderFields("ModelID", "ModelName", "VariableCount", "ClauseCount");
             modelCSV.flush();
-            modelReader = new ModelReader<>(modelPath, FormulaFormats.getInstance());
+            modelReader = new FileReader<>(modelPath, FormulaFormats.getInstance(), "model", "xml");
             optionCombiner.init(systemsOption);
             optionCombiner.loopOverOptions(this::optionLoop);
         } catch (IOException e) {
