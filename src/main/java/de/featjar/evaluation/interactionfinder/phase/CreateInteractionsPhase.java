@@ -83,7 +83,7 @@ public class CreateInteractionsPhase extends Evaluator {
         switch (lastChanged) {
             case 0: {
                 modelName = optionCombiner.getValue(0);
-                modelID = systemNames.indexOf(modelName);
+                modelID = getSystemId(modelName);
                 Result<BooleanAssignmentGroups> load = IO.load(
                         genPath.resolve(modelName).resolve("cnf.dimacs"), new BooleanAssignmentGroupsDimacsFormat());
                 if (load.isEmpty()) {

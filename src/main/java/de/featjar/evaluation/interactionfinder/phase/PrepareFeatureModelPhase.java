@@ -68,7 +68,7 @@ public class PrepareFeatureModelPhase extends Evaluator {
     public int optionLoop(int lastChanged) {
         // read fm
         String modelName = optionCombiner.getValue(0);
-        int modelID = systemNames.indexOf(modelName);
+        int modelID = getSystemId(modelName);
         Result<IFormula> load = modelReader.read(modelName);
         if (load.isEmpty()) {
             FeatJAR.log().problems(load.getProblems());

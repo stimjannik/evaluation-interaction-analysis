@@ -81,7 +81,7 @@ public class ReadInteractionsPhase extends Evaluator {
                     modelIteration++;
                     final String[] values = line.split(";");
                     final String modelName = values[0];
-                    modelID = systemNames.indexOf(modelName);
+                    modelID = getSystemId(modelName);
                     Result<BooleanAssignmentGroups> load = IO.load(
                             genPath.resolve(modelName).resolve("cnf.dimacs"),
                             new BooleanAssignmentGroupsDimacsFormat());
