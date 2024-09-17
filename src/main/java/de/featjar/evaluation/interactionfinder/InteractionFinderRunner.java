@@ -28,12 +28,12 @@ import de.featjar.base.computation.Computations;
 import de.featjar.base.data.IntegerList;
 import de.featjar.base.io.IO;
 import de.featjar.base.log.Log;
+import de.featjar.formula.computation.interactionfinder.*;
 import de.featjar.formula.assignment.ABooleanAssignment;
 import de.featjar.formula.assignment.BooleanAssignment;
 import de.featjar.formula.assignment.BooleanAssignmentGroups;
 import de.featjar.formula.assignment.BooleanClause;
 import de.featjar.formula.assignment.BooleanClauseList;
-import de.featjar.formula.computation.IncInteractionFinder;
 import de.featjar.formula.io.csv.BooleanAssignmentGroupsCSVFormat;
 import de.featjar.formula.io.dimacs.BooleanAssignmentGroupsDimacsFormat;
 import java.io.IOException;
@@ -57,7 +57,7 @@ public class InteractionFinderRunner {
         private long elapsedTimeInMS = -1;
         private Exception error = null;
 
-        private IncInteractionFinder algorithm;
+        private AInteractionFinder algorithm;
         private int t;
 
         private boolean finished;
@@ -221,13 +221,22 @@ public class InteractionFinderRunner {
                         .toArray());
     }
 
-    private static IncInteractionFinder parseAlgorithm(String algorithm) {
+    private static AInteractionFinder parseAlgorithm(String algorithm) {
         switch (algorithm) {
             case "inciident": {
                 return new IncInteractionFinder();
             }
             case "random": {
                 return new RandomInteractionFinder();
+            }
+            case "dominant_bug": {
+                return new IncInteractionFinderDominantBug();
+            }
+            case "only_working_configurations": {
+                return new IncInteractionFinderOnlyWorkingConfigurations();
+            }
+            case "repeat": {
+                return new IncInteractionFinderRepeat();
             }
             default:
                 throw new IllegalArgumentException(algorithm);

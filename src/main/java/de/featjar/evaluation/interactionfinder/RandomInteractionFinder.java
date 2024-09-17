@@ -23,7 +23,7 @@ package de.featjar.evaluation.interactionfinder;
 import de.featjar.base.data.IntegerList;
 import de.featjar.formula.assignment.BooleanAssignment;
 import de.featjar.formula.assignment.BooleanSolution;
-import de.featjar.formula.computation.IncInteractionFinder;
+import de.featjar.formula.computation.interactionfinder.IncInteractionFinder;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -51,7 +51,7 @@ public class RandomInteractionFinder extends IncInteractionFinder {
                 : null;
     }
 
-    private List<int[]> findT(int t) {
+    protected List<int[]> findT(int t) {
         List<int[]> curInteractionList = computePotentialInteractions(t);
         if (curInteractionList == null) {
             return null;
