@@ -128,7 +128,6 @@ public class InteractionFinderRunner {
             List<BooleanAssignment> interactions = new ArrayList<>();
             if (thread.isFinished()) {
                 if (thread.foundInteractions != null) {
-                    interactions.addAll(thread.foundInteractions);
                     BooleanAssignment foundInteractionsMerged =
                             new BooleanAssignment(IntegerList.merge(thread.foundInteractions));
                     interactions.add(foundInteractionsMerged);
@@ -136,6 +135,7 @@ public class InteractionFinderRunner {
                             .map(ComputeCoreSAT4J::new)
                             .set(ComputeCoreSAT4J.ASSUMED_ASSIGNMENT, foundInteractionsMerged)
                             .compute());
+                    interactions.addAll(thread.foundInteractions);
                 } else {
                     interactions.add(null);
                     interactions.add(null);
