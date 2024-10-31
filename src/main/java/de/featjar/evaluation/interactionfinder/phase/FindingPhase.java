@@ -132,7 +132,10 @@ public class FindingPhase extends Evaluator {
                     "NVerifications",
                     "TimeMS",
                     "Timeout",
-                    "Error");
+                    "Error",
+                    "FoundAll",
+                    "FoundFirst",
+                    "FoundSecond");
 
             algorithmCSV = new CSVFile(csvPath.resolve("algorithms.csv"));
             algorithmCSV.setHeaderFields("AlgorithmID", "AlgorithmName", "T");
@@ -396,39 +399,71 @@ public class FindingPhase extends Evaluator {
                 result.foundInteractions.isEmpty()
                         ? "N"
                         : result.foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0))
-                                ? "T"
-                                : "F");
+                        ? "T"
+                        : "F");
         dataCSVWriter.add(
                 result.foundInteractions.isEmpty()
                         ? "N"
                         : faultyInteractionsUpdated.get(0).containsAll(result.foundInteractionsMergedAndUpdated)
-                                ? "T"
-                                : "F");
+                        ? "T"
+                        : "F");
         dataCSVWriter.add(
                 result.foundInteractions.isEmpty() ? 0 : result.foundInteractionsMergedAndUpdated.countNonZero());
         dataCSVWriter.add(
                 result.foundInteractions.isEmpty()
                         ? -1
                         : faultyInteractionsUpdated
-                                .get(0)
-                                .retainAll(result.foundInteractionsMergedAndUpdated)
-                                .countNonZero());
+                        .get(0)
+                        .retainAll(result.foundInteractionsMergedAndUpdated)
+                        .countNonZero());
         dataCSVWriter.add(
                 result.foundInteractions.isEmpty()
                         ? -1
                         : faultyInteractionsUpdated
-                                .get(0)
-                                .removeAll(result.foundInteractionsMergedAndUpdated)
-                                .countNonZero());
+                        .get(0)
+                        .removeAll(result.foundInteractionsMergedAndUpdated)
+                        .countNonZero());
         dataCSVWriter.add(
                 result.foundInteractions.isEmpty()
                         ? -1
                         : result.foundInteractionsMergedAndUpdated
-                                .removeAll(faultyInteractionsUpdated.get(0))
-                                .countNonZero());
+                        .removeAll(faultyInteractionsUpdated.get(0))
+                        .countNonZero());
         dataCSVWriter.add(result.verificationCounter);
         dataCSVWriter.add(result.elapsedTimeInMS);
         dataCSVWriter.add(result.timeoutOccured);
         dataCSVWriter.add(result.errorOccured);
+
+        if (faultyInteractionsUpdated.size() == 2) {
+            dataCSVWriter.add(
+                    result.foundInteractions.isEmpty()
+                            ? "N"
+                            : faultyInteractionsUpdated.get(0).addAll(faultyInteractionsUpdated.get(1))
+                            .containsAll(result.foundInteractionsMergedAndUpdated)
+                            && result.foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0)
+                            .addAll(faultyInteractionsUpdated.get(1)))
+                            ? "T"
+                            : "F");
+        } else {
+            dataCSVWriter.add("N");
+        }
+        dataCSVWriter.add(
+                result.foundInteractions.isEmpty()
+                        ? "N"
+                        : result.foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0))
+                        && faultyInteractionsUpdated.get(0).containsAll(result.foundInteractionsMergedAndUpdated)
+                        ? "T"
+                        : "F");
+        if (faultyInteractionsUpdated.size() == 2) {
+            dataCSVWriter.add(
+                    result.foundInteractions.isEmpty()
+                            ? "N"
+                            : result.foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(1))
+                            && faultyInteractionsUpdated.get(1).containsAll(result.foundInteractionsMergedAndUpdated)
+                            ? "T"
+                            : "F");
+        } else {
+            dataCSVWriter.add("N");
+        }
     }
 }
