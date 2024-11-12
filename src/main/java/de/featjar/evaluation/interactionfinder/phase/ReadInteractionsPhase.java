@@ -77,6 +77,7 @@ public class ReadInteractionsPhase extends Evaluator {
             lines = Files.readAllLines(p);
             modelIteration = 0;
             for (final String line : lines) {
+                FeatJAR.log().info(line);
                 try {
                     modelIteration++;
                     final String[] values = line.split(";");
@@ -105,11 +106,9 @@ public class ReadInteractionsPhase extends Evaluator {
                             .map(ComputeBooleanRepresentation::new)
                             .compute();
 
-                    BooleanClauseList pcCnf = ((BooleanClauseList)
-                                    pcCnfRep.getGroups().get(0))
+                    BooleanClauseList pcCnf = pcCnfRep.toClauseList()
                             .adapt(pcCnfRep.getVariableMap(), variables);
-                    BooleanClauseList pcDnf = ((BooleanClauseList)
-                                    pcDnfRep.getGroups().get(0))
+                    BooleanClauseList pcDnf = pcDnfRep.toClauseList()
                             .adapt(pcDnfRep.getVariableMap(), variables);
                     Result<BooleanSolution> computeResult = Computations.of(cnf)
                             .map(ComputeSolutionSAT4J::new)
@@ -128,6 +127,7 @@ public class ReadInteractionsPhase extends Evaluator {
                                         .resolve(String.format("sol_rs%d.csv", modelIteration)),
                                 new BooleanAssignmentGroupsCSVFormat());
                         interactionCount = pcDnf.size();
+                        FeatJAR.log().info(interactionCount);
                         interactionSize =
                                 pcDnf.stream().mapToInt(c -> c.size()).max().getAsInt();
                         ArrayList<BooleanAssignment> updatedInteractions = new ArrayList<>(interactionCount);
@@ -155,7 +155,7 @@ public class ReadInteractionsPhase extends Evaluator {
                             w.add("r");
                             w.add(interactionCount);
                             w.add(interactionSize);
-                            w.add(String.format("g%d", modelIteration));
+                            w.add(String.format("r%d", modelIteration));
                         });
                     }
                 } catch (Exception e) {
