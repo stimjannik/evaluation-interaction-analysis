@@ -110,7 +110,24 @@ public class ReadInteractionsPhase extends Evaluator {
                             .adapt(pcCnfRep.getVariableMap(), variables);
                     BooleanClauseList pcDnf = pcDnfRep.toClauseList()
                             .adapt(pcDnfRep.getVariableMap(), variables);
-                    Result<BooleanSolution> computeResult = Computations.of(cnf)
+
+                    Result<BooleanSolution> computeResult = null;
+
+
+                    if (values.length > 8) {
+                        String config = values[8];
+                        BooleanClauseList pcCnfTemp = new BooleanClauseList(variables.getVariableCount());
+                        String[] split = config.split(",");
+                        for (String literal : split) {
+                            pcCnfTemp.add(new BooleanClause(Integer.parseInt(literal)));
+                        }
+                        pcCnf = pcCnfTemp;
+                        System.out.println(pcCnfTemp);
+                    }
+
+                    System.out.println(pcCnf);
+
+                    computeResult = Computations.of(cnf)
                             .map(ComputeSolutionSAT4J::new)
                             .set(ComputeSolutionSAT4J.RANDOM_SEED, randomSeed + modelIteration)
                             .set(ComputeSolutionSAT4J.ASSUMED_CLAUSE_LIST, pcCnf)
@@ -119,7 +136,7 @@ public class ReadInteractionsPhase extends Evaluator {
                         FeatJAR.log().problems(computeResult.getProblems());
                     } else {
                         BooleanSolution solution = computeResult.orElse(null);
-                        FeatJAR.log().debug(pcDnf);
+                        FeatJAR.log().info(solution);
                         IO.save(
                                 new BooleanAssignmentGroups(variables, List.of(List.of(solution))),
                                 genPath.resolve(modelName)
@@ -127,7 +144,6 @@ public class ReadInteractionsPhase extends Evaluator {
                                         .resolve(String.format("sol_rs%d.csv", modelIteration)),
                                 new BooleanAssignmentGroupsCSVFormat());
                         interactionCount = pcDnf.size();
-                        FeatJAR.log().info(interactionCount);
                         interactionSize =
                                 pcDnf.stream().mapToInt(c -> c.size()).max().getAsInt();
                         ArrayList<BooleanAssignment> updatedInteractions = new ArrayList<>(interactionCount);

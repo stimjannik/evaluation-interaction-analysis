@@ -135,7 +135,8 @@ public class FindingPhase extends Evaluator {
                     "Error",
                     "FoundAll",
                     "FoundFirst",
-                    "FoundSecond");
+                    "FoundSecond",
+                    "FoundAny");
 
             algorithmCSV = new CSVFile(csvPath.resolve("algorithms.csv"));
             algorithmCSV.setHeaderFields("AlgorithmID", "AlgorithmName", "T");
@@ -465,5 +466,11 @@ public class FindingPhase extends Evaluator {
         } else {
             dataCSVWriter.add("N");
         }
+        boolean foundAny = false;
+        for (BooleanClause interaction : faultyInteractionsUpdated) {
+            foundAny = foundAny || (interaction.containsAll(result.foundInteractionsMergedAndUpdated)
+                    && result.foundInteractionsMergedAndUpdated.containsAll(interaction));
+        }
+        dataCSVWriter.add(foundAny ? "T" : "F");
     }
 }
