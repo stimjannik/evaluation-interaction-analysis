@@ -101,7 +101,7 @@ public class InteractionFinderRunner {
             BooleanClauseList cnf = model.toClauseList();
             BooleanAssignmentGroups core = loadDimacs(args[1]);
             BooleanAssignmentGroups sample = loadDimacs(args[2]);
-            BooleanAssignmentGroups interaction = loadDimacs(args[3]);
+            BooleanAssignmentGroups interaction = loadCSV(args[3]);
             Path outputPath = Paths.get(args[4]);
 
             thread.algorithm = parseAlgorithm(args[5]);
@@ -115,7 +115,7 @@ public class InteractionFinderRunner {
             thread.algorithm.reset();
             thread.algorithm.setCore(core.getGroups().get(0).get(0).toClause());
             thread.algorithm.setVerifier(
-                    new ConfigurationOracle(interaction.toClauseList(0).getAll(), fpNoise, fnNoise));
+                    new ConfigurationOracle(interaction, fpNoise, fnNoise));
             thread.algorithm.setUpdater(new RandomConfigurationUpdater(cnf, seed));
             List<? extends ABooleanAssignment> list = sample.getGroups().get(0);
             thread.algorithm.addConfigurations(list);
@@ -207,6 +207,15 @@ public class InteractionFinderRunner {
                     .orElseThrow();
         } else if (path.endsWith(".dimacs")) {
             return IO.load(Paths.get(path), new BooleanAssignmentGroupsDimacsFormat())
+                    .orElseThrow();
+        } else {
+            throw new RuntimeException("Unkown file format");
+        }
+    }
+
+    private static BooleanAssignmentGroups loadCSV(String path) {
+        if (path.endsWith(".csv")) {
+            return IO.load(Paths.get(path), new BooleanAssignmentGroupsCSVFormat())
                     .orElseThrow();
         } else {
             throw new RuntimeException("Unkown file format");

@@ -22,16 +22,19 @@ package de.featjar.evaluation.interactionfinder;
 
 import de.featjar.analysis.IConfigurationVerifyer;
 import de.featjar.formula.assignment.ABooleanAssignment;
+import de.featjar.formula.assignment.BooleanAssignmentGroups;
+import de.featjar.formula.assignment.BooleanAssignmentList;
 import de.featjar.formula.assignment.BooleanSolution;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
 public class ConfigurationOracle implements IConfigurationVerifyer {
-    private final List<? extends ABooleanAssignment> interactions;
+    private final BooleanAssignmentGroups interactions;
     private final double fpNoise, fnNoise;
 
-    public ConfigurationOracle(List<? extends ABooleanAssignment> interactions, double fpNoise, double fnNoise) {
+    public ConfigurationOracle(BooleanAssignmentGroups interactions, double fpNoise, double fnNoise) {
         this.interactions = interactions;
         this.fpNoise = fpNoise;
         this.fnNoise = fnNoise;
@@ -42,21 +45,23 @@ public class ConfigurationOracle implements IConfigurationVerifyer {
         final Random random = new Random(Arrays.hashCode(configuration.get()));
 
         int error = 1;
-        for (ABooleanAssignment interaction : interactions) {
-            final boolean isFailing = configuration.containsAll(interaction);
-            if (isFailing) {
-                break;
+        loop:
+        for (List<? extends ABooleanAssignment> dnf : interactions.getGroups()) {
+            for (ABooleanAssignment interaction : dnf) {
+                final boolean isFailing = configuration.containsAll(interaction);
+                if (isFailing) {
+                    break loop;
+                }
             }
             error++;
         }
-        error %= interactions.size() + 1;
 
-        return error == 0 //
-                ? random.nextDouble() < fnNoise //
-                        ? random.nextInt(interactions.size()) + 1 //
+        return error > interactions.getGroups().size() ?
+                random.nextDouble() < fnNoise //
+                        ? random.nextInt(interactions.getGroups().size()) + 1 //
                         : 0 //
                 : random.nextDouble() < fpNoise //
-                        ? 0 //
-                        : error;
+                ? 0 //
+                : error;
     }
 }
