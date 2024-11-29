@@ -74,8 +74,6 @@ public class ReadInteractionsPhase extends Evaluator {
             lines = Files.readAllLines(p);
             modelIteration = 0;
             for (final String line : lines) {
-                FeatJAR.log().info("--------------------------------------------------------------------");
-                FeatJAR.log().info(line);
                 try {
                     modelIteration++;
                     final String[] values = line.split(";");
@@ -92,8 +90,6 @@ public class ReadInteractionsPhase extends Evaluator {
                     VariableMap variables = space.getVariableMap();
                     BooleanClauseList cnf =
                             new BooleanClauseList(space.getGroups().get(0), variables.getVariableCount());
-
-                    FeatJAR.log().info(Arrays.toString(values));
 
                     final String formulaString = values[5];
                     String[] formularSplit = formulaString.split(",");
@@ -132,18 +128,19 @@ public class ReadInteractionsPhase extends Evaluator {
                     BooleanAssignmentGroups pcuDnfs = new BooleanAssignmentGroups(variables, udnfs);
 
                     interactionCount = pcDnfs.getGroups().size();
+
                     IO.save(
                             pcDnfs,
                             genPath.resolve(modelName)
                                     .resolve("interactions")
-                                    .resolve(String.format("int_r%d_rs%d.dimacs", modelIteration, modelIteration)),
-                            new BooleanAssignmentGroupsDimacsFormat());
+                                    .resolve(String.format("int_r%d_rs%d.csv", modelIteration, modelIteration)),
+                            new BooleanAssignmentGroupsCSVFormat());
                     IO.save(
                             pcuDnfs,
                             genPath.resolve(modelName)
                                     .resolve("interactions")
-                                    .resolve(String.format("uint_r%d_rs%d.dimacs", modelIteration, modelIteration)),
-                            new BooleanAssignmentGroupsDimacsFormat());
+                                    .resolve(String.format("uint_r%d_rs%d.csv", modelIteration, modelIteration)),
+                            new BooleanAssignmentGroupsCSVFormat());
                     CSVFile.writeCSV(interactionsCSV, w -> {
                         w.add(modelID);
                         w.add(modelIteration);
@@ -173,7 +170,6 @@ public class ReadInteractionsPhase extends Evaluator {
                         FeatJAR.log().problems(computeResult.getProblems());
                     } else {
                         BooleanSolution solution = computeResult.orElse(null);
-                        FeatJAR.log().info(solution);
                         IO.save(
                                 new BooleanAssignmentGroups(variables, List.of(List.of(solution))),
                                 genPath.resolve(modelName)
@@ -181,7 +177,6 @@ public class ReadInteractionsPhase extends Evaluator {
                                         .resolve(String.format("sol_rs%d.csv", modelIteration)),
                                 new BooleanAssignmentGroupsCSVFormat());
                     }
-
                 } catch (Exception e) {
                     FeatJAR.log().error(e);
                 }

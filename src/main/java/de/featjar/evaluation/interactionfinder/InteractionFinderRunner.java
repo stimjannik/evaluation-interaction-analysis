@@ -102,6 +102,7 @@ public class InteractionFinderRunner {
             BooleanAssignmentGroups core = loadDimacs(args[1]);
             BooleanAssignmentGroups sample = loadDimacs(args[2]);
             BooleanAssignmentGroups interaction = loadCSV(args[3]);
+
             Path outputPath = Paths.get(args[4]);
 
             thread.algorithm = parseAlgorithm(args[5]);

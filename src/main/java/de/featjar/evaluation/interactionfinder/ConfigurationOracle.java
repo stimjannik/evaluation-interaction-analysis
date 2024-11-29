@@ -21,6 +21,7 @@
 package de.featjar.evaluation.interactionfinder;
 
 import de.featjar.analysis.IConfigurationVerifyer;
+import de.featjar.base.FeatJAR;
 import de.featjar.formula.assignment.ABooleanAssignment;
 import de.featjar.formula.assignment.BooleanAssignmentGroups;
 import de.featjar.formula.assignment.BooleanAssignmentList;
@@ -42,6 +43,10 @@ public class ConfigurationOracle implements IConfigurationVerifyer {
 
     @Override
     public int test(BooleanSolution configuration) {
+
+        FeatJAR.log().info(configuration.toString());
+        FeatJAR.log().info(interactions.toString());
+
         final Random random = new Random(Arrays.hashCode(configuration.get()));
 
         int error = 1;
@@ -56,12 +61,16 @@ public class ConfigurationOracle implements IConfigurationVerifyer {
             error++;
         }
 
-        return error > interactions.getGroups().size() ?
+        int error2 = error > interactions.getGroups().size() ?
                 random.nextDouble() < fnNoise //
                         ? random.nextInt(interactions.getGroups().size()) + 1 //
                         : 0 //
                 : random.nextDouble() < fpNoise //
                 ? 0 //
                 : error;
+
+        FeatJAR.log().info(error2);
+
+        return error2;
     }
 }

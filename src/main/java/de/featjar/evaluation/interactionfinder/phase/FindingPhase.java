@@ -34,6 +34,7 @@ import de.featjar.formula.assignment.ABooleanAssignment;
 import de.featjar.formula.assignment.BooleanAssignment;
 import de.featjar.formula.assignment.BooleanAssignmentGroups;
 import de.featjar.formula.assignment.BooleanClause;
+import de.featjar.formula.io.csv.BooleanAssignmentGroupsCSVFormat;
 import de.featjar.formula.io.dimacs.BooleanAssignmentGroupsDimacsFormat;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -62,7 +63,7 @@ public class FindingPhase extends Evaluator {
     public static final ListOption<String> algorithmsOption = Option.newListOption("algorithm", Option.StringParser);
     public static final Option<Boolean> runjarOption = Option.newOption("jar", Option.BooleanParser, false);
 
-    private static final Pattern compile = Pattern.compile("uint_([a-z]+\\d+)_([a-z]+\\d+)[.]dimacs");
+    private static final Pattern compile = Pattern.compile("uint_([a-z]+\\d+)_([a-z]+\\d+)[.]csv");
 
     private static class ProcessResult {
         List<ABooleanAssignment> foundInteractions;
@@ -100,7 +101,7 @@ public class FindingPhase extends Evaluator {
         }
     }
 
-    private List<BooleanClause> faultyInteractionsUpdated;
+    private BooleanAssignmentGroups faultyInteractionsUpdated;
     private ProcessResult result;
 
     private CSVFile dataCSV, algorithmCSV;
@@ -123,19 +124,19 @@ public class FindingPhase extends Evaluator {
                     "fpNoise",
                     "fnNoise",
                     "NInteractionsFound",
-                    "FoundContainsFaulty",
-                    "FaultyContainsFound",
+//                    "FoundContainsFaulty",
+//                    "FaultyContainsFound",
                     "NFoundLiterals",
-                    "NSameLiterals",
-                    "NNonFoundLiterals",
-                    "NWrongLiteralsFound",
+//                    "NSameLiterals",
+//                    "NNonFoundLiterals",
+//                    "NWrongLiteralsFound",
                     "NVerifications",
                     "TimeMS",
                     "Timeout",
                     "Error",
-                    "FoundAll",
-                    "FoundFirst",
-                    "FoundSecond",
+//                    "FoundAll",
+//                    "FoundFirst",
+//                    "FoundSecond",
                     "FoundAny");
 
             algorithmCSV = new CSVFile(csvPath.resolve("algorithms.csv"));
@@ -208,6 +209,7 @@ public class FindingPhase extends Evaluator {
             return;
         }
         ProgressTracker progress = new ProgressTracker(interactionFiles.size());
+
         for (Path interactionFile : interactionFiles) {
             FeatJAR.log().progress(progress::nextAndPrint);
             Matcher matcher = compile.matcher(interactionFile.getFileName().toString());
@@ -222,9 +224,10 @@ public class FindingPhase extends Evaluator {
                 String outputPath = tempPath.resolve("result.txt").toString();
 
                 BooleanAssignmentGroups interaction = IO.load(
-                                interactionFile, new BooleanAssignmentGroupsDimacsFormat())
+                                interactionFile, new BooleanAssignmentGroupsCSVFormat())
                         .orElseThrow();
-                faultyInteractionsUpdated = interaction.toClauseList(0).getAll();
+
+                faultyInteractionsUpdated = interaction;
 
                 ProcessResult result =
                         startProcess(interactionFile, samplePathString, modelPathString, corePathString, outputPath);
@@ -316,11 +319,17 @@ public class FindingPhase extends Evaluator {
                     "-da", //
                     "-cp", //
                     "build/libs/evaluation-interaction-analysis-0.1.0-SNAPSHOT-all.jar", //
-                    "de.featjar.evaluation.interactionfinder.InteractionFinderRunner"));
+                    "de.featjar.evaluation.interactionfinder.InteractionFinderRunner",
+                    "--log-info",
+                    "MESSAGE,INFO,DEBUG",
+                    "--log-error",
+                    "WARNING,ERROR"));
             jvmArgs.addAll(args);
             process = new ProcessBuilder(jvmArgs).start();
+            BufferedReader prcOut = new BufferedReader(new InputStreamReader(process.getInputStream()));
             prcErr = new BufferedReader(new InputStreamReader(process.getErrorStream()));
             process.waitFor();
+
         } catch (Exception e) {
             FeatJAR.log().error(e);
         } finally {
@@ -396,81 +405,81 @@ public class FindingPhase extends Evaluator {
         dataCSVWriter.add(fpNoise);
         dataCSVWriter.add(fnNoise);
         dataCSVWriter.add(result.foundInteractions.size());
-        dataCSVWriter.add(
-                result.foundInteractions.isEmpty()
-                        ? "N"
-                        : result.foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0))
-                        ? "T"
-                        : "F");
-        dataCSVWriter.add(
-                result.foundInteractions.isEmpty()
-                        ? "N"
-                        : faultyInteractionsUpdated.get(0).containsAll(result.foundInteractionsMergedAndUpdated)
-                        ? "T"
-                        : "F");
+//        dataCSVWriter.add(
+//                result.foundInteractions.isEmpty()
+//                        ? "N"
+//                        : result.foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0))
+//                        ? "T"
+//                        : "F");
+//        dataCSVWriter.add(
+//                result.foundInteractions.isEmpty()
+//                        ? "N"
+//                        : faultyInteractionsUpdated.get(0).containsAll(result.foundInteractionsMergedAndUpdated)
+//                        ? "T"
+//                        : "F");
         dataCSVWriter.add(
                 result.foundInteractions.isEmpty() ? 0 : result.foundInteractionsMergedAndUpdated.countNonZero());
-        dataCSVWriter.add(
-                result.foundInteractions.isEmpty()
-                        ? -1
-                        : faultyInteractionsUpdated
-                        .get(0)
-                        .retainAll(result.foundInteractionsMergedAndUpdated)
-                        .countNonZero());
-        dataCSVWriter.add(
-                result.foundInteractions.isEmpty()
-                        ? -1
-                        : faultyInteractionsUpdated
-                        .get(0)
-                        .removeAll(result.foundInteractionsMergedAndUpdated)
-                        .countNonZero());
-        dataCSVWriter.add(
-                result.foundInteractions.isEmpty()
-                        ? -1
-                        : result.foundInteractionsMergedAndUpdated
-                        .removeAll(faultyInteractionsUpdated.get(0))
-                        .countNonZero());
+//        dataCSVWriter.add(
+//                result.foundInteractions.isEmpty()
+//                        ? -1
+//                        : faultyInteractionsUpdated
+//                        .get(0)
+//                        .retainAll(result.foundInteractionsMergedAndUpdated)
+//                        .countNonZero());
+//        dataCSVWriter.add(
+//                result.foundInteractions.isEmpty()
+//                        ? -1
+//                        : faultyInteractionsUpdated
+//                        .get(0)
+//                        .removeAll(result.foundInteractionsMergedAndUpdated)
+//                        .countNonZero());
+//        dataCSVWriter.add(
+//                result.foundInteractions.isEmpty()
+//                        ? -1
+//                        : result.foundInteractionsMergedAndUpdated
+//                        .removeAll(faultyInteractionsUpdated.get(0))
+//                        .countNonZero());
         dataCSVWriter.add(result.verificationCounter);
         dataCSVWriter.add(result.elapsedTimeInMS);
         dataCSVWriter.add(result.timeoutOccured);
         dataCSVWriter.add(result.errorOccured);
 
-        if (faultyInteractionsUpdated.size() == 2) {
-            dataCSVWriter.add(
-                    result.foundInteractions.isEmpty()
-                            ? "N"
-                            : faultyInteractionsUpdated.get(0).addAll(faultyInteractionsUpdated.get(1))
-                            .containsAll(result.foundInteractionsMergedAndUpdated)
-                            && result.foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0)
-                            .addAll(faultyInteractionsUpdated.get(1)))
-                            ? "T"
-                            : "F");
-        } else {
-            dataCSVWriter.add("N");
-        }
-        dataCSVWriter.add(
-                result.foundInteractions.isEmpty()
-                        ? "N"
-                        : result.foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0))
-                        && faultyInteractionsUpdated.get(0).containsAll(result.foundInteractionsMergedAndUpdated)
-                        ? "T"
-                        : "F");
-        if (faultyInteractionsUpdated.size() == 2) {
-            dataCSVWriter.add(
-                    result.foundInteractions.isEmpty()
-                            ? "N"
-                            : result.foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(1))
-                            && faultyInteractionsUpdated.get(1).containsAll(result.foundInteractionsMergedAndUpdated)
-                            ? "T"
-                            : "F");
-        } else {
-            dataCSVWriter.add("N");
-        }
-        boolean foundAny = false;
-        for (BooleanClause interaction : faultyInteractionsUpdated) {
-            foundAny = foundAny || (interaction.containsAll(result.foundInteractionsMergedAndUpdated)
-                    && result.foundInteractionsMergedAndUpdated.containsAll(interaction));
-        }
+//        if (faultyInteractionsUpdated.size() == 2) {
+//            dataCSVWriter.add(
+//                    result.foundInteractions.isEmpty()
+//                            ? "N"
+//                            : faultyInteractionsUpdated.get(0).addAll(faultyInteractionsUpdated.get(1))
+//                            .containsAll(result.foundInteractionsMergedAndUpdated)
+//                            && result.foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0)
+//                            .addAll(faultyInteractionsUpdated.get(1)))
+//                            ? "T"
+//                            : "F");
+//        } else {
+//            dataCSVWriter.add("N");
+//        }
+//        dataCSVWriter.add(
+//                result.foundInteractions.isEmpty()
+//                        ? "N"
+//                        : result.foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(0))
+//                        && faultyInteractionsUpdated.get(0).containsAll(result.foundInteractionsMergedAndUpdated)
+//                        ? "T"
+//                        : "F");
+//        if (faultyInteractionsUpdated.size() == 2) {
+//            dataCSVWriter.add(
+//                    result.foundInteractions.isEmpty()
+//                            ? "N"
+//                            : result.foundInteractionsMergedAndUpdated.containsAll(faultyInteractionsUpdated.get(1))
+//                            && faultyInteractionsUpdated.get(1).containsAll(result.foundInteractionsMergedAndUpdated)
+//                            ? "T"
+//                            : "F");
+//        } else {
+//            dataCSVWriter.add("N");
+//        }
+        boolean foundAny = faultyInteractionsUpdated.getGroups().stream().flatMap(List::stream).anyMatch(interaction -> interaction.containsAll(result.foundInteractionsMergedAndUpdated) && result.foundInteractionsMergedAndUpdated.containsAll(interaction));
+//        for (BooleanClause interaction : faultyInteractionsUpdated) {
+//            foundAny = foundAny || (interaction.containsAll(result.foundInteractionsMergedAndUpdated)
+//                    && result.foundInteractionsMergedAndUpdated.containsAll(interaction));
+//        }
         dataCSVWriter.add(foundAny ? "T" : "F");
     }
 }
