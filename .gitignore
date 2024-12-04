@@ -11,3 +11,5 @@ data/
 /error.log
 /misc/
 /out.log
+/plots/.idea/
+/plots/.venv/
